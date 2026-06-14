@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrandMark } from '../../components/BrandMark/BrandMark'
 import type { DashboardSummary, Transaction } from '../../database/models'
+import { CameraCapture } from '../../features/camera/CameraCapture'
 import { Dashboard } from '../../features/dashboard/Dashboard'
 import { ManualTransactionForm } from '../../features/transactions/ManualTransactionForm'
 import { TransactionHistory } from '../../features/transactions/TransactionHistory'
@@ -14,12 +15,12 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 2.1',
-    value: 'Balance dashboard',
+    label: 'Phase 3',
+    value: 'Camera capture',
   },
   {
     label: 'Focus',
-    value: 'Dynamic summary',
+    value: 'Receipt preview',
   },
 ]
 
@@ -83,6 +84,7 @@ export function HomePage() {
             onInitialBalanceUpdated={loadFinancialOverview}
           />
         ) : null}
+        <CameraCapture />
         <ManualTransactionForm onTransactionCreated={loadFinancialOverview} />
         <TransactionHistory
           transactions={transactions}
