@@ -8,6 +8,7 @@ export type Transaction = {
   amount: number
   type: TransactionType
   category: string
+  note?: string
   status: TransactionStatus
   occurredAt: string
   createdAt: string
@@ -19,6 +20,7 @@ export type CreateTransactionInput = {
   title: string
   amount: number
   type: TransactionType
-  category: string
+  category?: string
+  note?: string
   occurredAt?: string
 }
