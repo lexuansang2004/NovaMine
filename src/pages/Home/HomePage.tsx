@@ -15,12 +15,12 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 4',
-    value: 'Image storage',
+    label: 'Phase 5',
+    value: 'Type selection',
   },
   {
     label: 'Focus',
-    value: 'OPFS fallback',
+    value: 'Capture flow',
   },
 ]
 

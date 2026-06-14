@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PhotoMetadata } from '../../database/models'
+import type { PhotoMetadata, TransactionType } from '../../database/models'
 import {
   captureImageFromVideo,
   startCamera,
@@ -15,6 +15,19 @@ import './CameraCapture.css'
 type StoredPhotoPreview = {
   metadata: PhotoMetadata
   url: string
+}
+
+const transactionTypeOptions: Array<{
+  label: string
+  value: TransactionType
+}> = [
+  { label: 'Thu nhập', value: 'income' },
+  { label: 'Chi tiêu', value: 'expense' },
+]
+
+const transactionTypeLabels: Record<TransactionType, string> = {
+  expense: 'Chi tiêu',
+  income: 'Thu nhập',
 }
 
 async function buildStoredPhotoPreviews(): Promise<StoredPhotoPreview[]> {
@@ -37,11 +50,16 @@ export function CameraCapture() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const previewUrlsRef = useRef<string[]>([])
+  const [latestCapturedPhoto, setLatestCapturedPhoto] =
+    useState<StoredPhotoPreview | null>(null)
+  const [selectedTransactionType, setSelectedTransactionType] =
+    useState<TransactionType | null>(null)
   const [storedPhotos, setStoredPhotos] = useState<StoredPhotoPreview[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isSavingImage, setIsSavingImage] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
+  const [transactionDraftMessage, setTransactionDraftMessage] = useState('')
 
   const revokePreviewUrls = useCallback(() => {
     previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
@@ -57,6 +75,8 @@ export function CameraCapture() {
   const loadStoredImages = useCallback(async () => {
     const previews = await buildStoredPhotoPreviews()
     replaceStoredPhotoPreviews(previews)
+
+    return previews
   }, [replaceStoredPhotoPreviews])
 
   useEffect(() => {
@@ -126,8 +146,14 @@ export function CameraCapture() {
 
     try {
       const capturedImageBlob = await captureImageFromVideo(videoRef.current)
-      await saveImage(capturedImageBlob)
-      await loadStoredImages()
+      const savedPhoto = await saveImage(capturedImageBlob)
+      const previews = await loadStoredImages()
+      const capturedPhoto =
+        previews.find((photo) => photo.metadata.id === savedPhoto.id) ?? null
+
+      setLatestCapturedPhoto(capturedPhoto)
+      setSelectedTransactionType(null)
+      setTransactionDraftMessage('')
       setErrorMessage('')
     } catch (error) {
       setErrorMessage(
@@ -140,15 +166,39 @@ export function CameraCapture() {
     }
   }
 
+  function handleSelectTransactionType(type: TransactionType) {
+    setSelectedTransactionType(type)
+    setTransactionDraftMessage('')
+  }
+
+  function handleSaveTransactionDraft() {
+    if (!selectedTransactionType) {
+      setErrorMessage('Vui lòng chọn Thu nhập hoặc Chi tiêu trước khi lưu.')
+      return
+    }
+
+    setErrorMessage('')
+    setTransactionDraftMessage(
+      `Đã chọn loại giao dịch: ${transactionTypeLabels[selectedTransactionType]}.`,
+    )
+  }
+
+  const cameraCaptureClassName = selectedTransactionType
+    ? `camera-capture camera-capture--${selectedTransactionType}`
+    : 'camera-capture'
+
   return (
-    <section className="camera-capture" aria-labelledby="camera-capture-title">
+    <section
+      className={cameraCaptureClassName}
+      aria-labelledby="camera-capture-title"
+    >
       <div className="camera-capture__header">
         <div>
-          <p className="camera-capture__eyebrow">Phase 4</p>
-          <h2 id="camera-capture-title">Chụp và lưu ảnh hóa đơn</h2>
+          <p className="camera-capture__eyebrow">Phase 5</p>
+          <h2 id="camera-capture-title">Chụp ảnh và chọn loại giao dịch</h2>
           <p>
-            Bật camera, xem preview, chụp ảnh và lưu ảnh đã nén vào OPFS hoặc
-            IndexedDB fallback.
+            Bật camera, chụp ảnh hóa đơn, sau đó chọn Thu nhập hoặc Chi tiêu
+            trước khi nhập thông tin giao dịch.
           </p>
         </div>
 
@@ -202,6 +252,55 @@ export function CameraCapture() {
         </div>
 
         <div className="camera-capture__result">
+          {latestCapturedPhoto ? (
+            <div className="camera-capture__transaction-step">
+              <div className="camera-capture__latest-photo">
+                <img
+                  alt="Ảnh hóa đơn vừa chụp"
+                  src={latestCapturedPhoto.url}
+                />
+              </div>
+
+              <div className="camera-capture__type-step">
+                <h3>Chọn loại giao dịch</h3>
+                <div className="camera-capture__type-options">
+                  {transactionTypeOptions.map((option) => (
+                    <button
+                      aria-pressed={selectedTransactionType === option.value}
+                      className="camera-capture__type-button"
+                      key={option.value}
+                      onClick={() => handleSelectTransactionType(option.value)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedTransactionType ? (
+                <div className="camera-capture__info-step">
+                  <h3>Nhập thông tin</h3>
+                  <p>
+                    Đang nhập giao dịch{' '}
+                    {transactionTypeLabels[
+                      selectedTransactionType
+                    ].toLowerCase()}
+                    .
+                  </p>
+                  <button onClick={handleSaveTransactionDraft} type="button">
+                    Lưu thông tin
+                  </button>
+                  {transactionDraftMessage ? (
+                    <p className="camera-capture__success">
+                      {transactionDraftMessage}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <h3>Ảnh đã lưu</h3>
           {storedPhotos.length > 0 ? (
             <div className="camera-capture__photos">
