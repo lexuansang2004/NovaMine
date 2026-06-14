@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { BrandMark } from '../../components/BrandMark/BrandMark'
-import type { Transaction } from '../../database/models'
+import type { DashboardSummary, Transaction } from '../../database/models'
+import { Dashboard } from '../../features/dashboard/Dashboard'
 import { ManualTransactionForm } from '../../features/transactions/ManualTransactionForm'
 import { TransactionHistory } from '../../features/transactions/TransactionHistory'
+import { getDashboardSummary } from '../../repositories/dashboardRepository'
 import { getConfirmedTransactions } from '../../repositories/transactionsRepository'
 import './HomePage.css'
 
@@ -12,31 +14,41 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 2',
-    value: 'Manual form',
+    label: 'Phase 2.1',
+    value: 'Balance dashboard',
   },
   {
     label: 'Focus',
-    value: 'Transaction history',
+    value: 'Dynamic summary',
   },
 ]
 
 export function HomePage() {
+  const [dashboardSummary, setDashboardSummary] =
+    useState<DashboardSummary | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
 
-  async function loadTransactions() {
-    const confirmedTransactions = await getConfirmedTransactions()
+  async function loadFinancialOverview() {
+    const [confirmedTransactions, summary] = await Promise.all([
+      getConfirmedTransactions(),
+      getDashboardSummary(),
+    ])
+
     setTransactions(confirmedTransactions)
+    setDashboardSummary(summary)
   }
 
   useEffect(() => {
     let isActive = true
 
-    void getConfirmedTransactions().then((confirmedTransactions) => {
+    void Promise.all([getConfirmedTransactions(), getDashboardSummary()]).then(
+      ([confirmedTransactions, summary]) => {
       if (isActive) {
         setTransactions(confirmedTransactions)
+        setDashboardSummary(summary)
       }
-    })
+      },
+    )
 
     return () => {
       isActive = false
@@ -50,12 +62,12 @@ export function HomePage() {
         <p className="home-page__eyebrow">NovaMine foundation</p>
         <h1 id="home-title">Personal finance, kept close to you.</h1>
         <p className="home-page__summary">
-          Record income and expenses manually, keep every confirmed transaction
-          in IndexedDB, and review your history after reload.
+          Track your starting cash, income, expenses, and live balance from
+          local-first data stored in IndexedDB.
         </p>
       </div>
 
-      <div className="home-page__panel" aria-label="Phase 2 status">
+      <div className="home-page__panel" aria-label="Phase 2.1 status">
         {homeHighlights.map((item) => (
           <article className="home-page__item" key={item.label}>
             <span>{item.label}</span>
@@ -65,10 +77,16 @@ export function HomePage() {
       </div>
 
       <div className="home-page__workspace">
-        <ManualTransactionForm onTransactionCreated={loadTransactions} />
+        {dashboardSummary ? (
+          <Dashboard
+            summary={dashboardSummary}
+            onInitialBalanceUpdated={loadFinancialOverview}
+          />
+        ) : null}
+        <ManualTransactionForm onTransactionCreated={loadFinancialOverview} />
         <TransactionHistory
           transactions={transactions}
-          onTransactionDeleted={loadTransactions}
+          onTransactionDeleted={loadFinancialOverview}
         />
       </div>
     </section>
