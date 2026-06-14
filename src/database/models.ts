@@ -41,3 +41,24 @@ export type DashboardSummary = {
   todayExpenseVnd: number
   hasInitialBalance: boolean
 }
+
+export type PhotoStorageType = 'opfs' | 'indexeddb'
+
+export type PhotoMetadata = {
+  id: string
+  transactionId?: number | null
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  width: number
+  height: number
+  storageKey: string
+  storageType: PhotoStorageType
+  createdAt: string
+}
+
+export type PhotoBlobRecord = {
+  id: string
+  blob: Blob
+  createdAt: string
+}

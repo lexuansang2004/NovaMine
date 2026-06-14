@@ -28,7 +28,26 @@ export function stopCamera(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
 }
 
-export function captureImageFromVideo(videoElement: HTMLVideoElement): string {
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob)
+          return
+        }
+
+        reject(new Error('Không thể tạo ảnh từ camera.'))
+      },
+      type,
+      quality,
+    )
+  })
+}
+
+export async function captureImageFromVideo(
+  videoElement: HTMLVideoElement,
+): Promise<Blob> {
   const { videoHeight, videoWidth } = videoElement
 
   if (!videoWidth || !videoHeight) {
@@ -47,5 +66,5 @@ export function captureImageFromVideo(videoElement: HTMLVideoElement): string {
 
   context.drawImage(videoElement, 0, 0, videoWidth, videoHeight)
 
-  return canvas.toDataURL('image/jpeg', 0.92)
+  return canvasToBlob(canvas, 'image/jpeg', 0.92)
 }
