@@ -3,7 +3,6 @@ import { BrandMark } from '../../components/BrandMark/BrandMark'
 import type { DashboardSummary, Transaction } from '../../database/models'
 import { CameraCapture } from '../../features/camera/CameraCapture'
 import { Dashboard } from '../../features/dashboard/Dashboard'
-import { ManualTransactionForm } from '../../features/transactions/ManualTransactionForm'
 import { TransactionHistory } from '../../features/transactions/TransactionHistory'
 import { getDashboardSummary } from '../../repositories/dashboardRepository'
 import { getConfirmedTransactions } from '../../repositories/transactionsRepository'
@@ -85,7 +84,6 @@ export function HomePage() {
           />
         ) : null}
         <CameraCapture />
-        <ManualTransactionForm onTransactionCreated={loadFinancialOverview} />
         <TransactionHistory
           transactions={transactions}
           onTransactionDeleted={loadFinancialOverview}
