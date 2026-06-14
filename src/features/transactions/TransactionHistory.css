@@ -1,0 +1,116 @@
+.transaction-history {
+  padding: 24px;
+  border: 1px solid rgba(18, 37, 31, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(31, 47, 42, 0.08);
+}
+
+.transaction-history__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.transaction-history__header h2 {
+  margin: 0;
+  color: #16231f;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.transaction-history__header p,
+.transaction-history__empty {
+  margin: 6px 0 0;
+  color: #66746f;
+}
+
+.transaction-history__header > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #eef5ec;
+  color: #1e7a5f;
+  font-weight: 700;
+}
+
+.transaction-history ul {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.transaction-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(18, 37, 31, 0.08);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.transaction-history__info,
+.transaction-history__meta {
+  display: grid;
+  gap: 6px;
+}
+
+.transaction-history__info span {
+  color: #66746f;
+  font-size: 14px;
+}
+
+.transaction-history__info p {
+  max-width: 480px;
+  margin: 0;
+  color: #4b5a54;
+}
+
+.transaction-history__meta {
+  justify-items: end;
+  text-align: right;
+}
+
+.transaction-history__amount {
+  white-space: nowrap;
+}
+
+.transaction-history__amount--income {
+  color: #1e7a5f;
+}
+
+.transaction-history__amount--expense {
+  color: #8b2f24;
+}
+
+.transaction-history button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: #8b2f24;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 820px) {
+  .transaction-history li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .transaction-history__meta {
+    justify-items: start;
+    text-align: left;
+  }
+}
