@@ -24,3 +24,20 @@ export type CreateTransactionInput = {
   note?: string
   occurredAt?: string
 }
+
+export type AppSetting = {
+  key: string
+  value: string | number | boolean
+  updatedAt: string
+}
+
+export type DashboardSummary = {
+  initialBalanceVnd: number
+  totalIncomeVnd: number
+  totalExpenseVnd: number
+  currentBalanceVnd: number
+  todayTransactionCount: number
+  todayIncomeVnd: number
+  todayExpenseVnd: number
+  hasInitialBalance: boolean
+}
