@@ -1,0 +1,41 @@
+.main-layout {
+  min-height: 100vh;
+  background: #f6f7f2;
+  color: #16231f;
+}
+
+.main-layout__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid rgba(22, 35, 31, 0.1);
+  background: rgba(246, 247, 242, 0.92);
+  backdrop-filter: blur(14px);
+}
+
+.main-layout__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 0 32px;
+  color: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.main-layout__content {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+@media (max-width: 720px) {
+  .main-layout__brand {
+    padding: 0 20px;
+  }
+
+  .main-layout__content {
+    width: min(100% - 28px, 1120px);
+  }
+}
