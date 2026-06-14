@@ -1,4 +1,4 @@
-# NovaMine: Trợ Lý Tài Chính Thông Minh – Quyền Riêng Tư Tuyệt Đối
+# NovaMine: Trợ Lý Tài Chính Thông Minh – git add README.mdQuyền Riêng Tư Tuyệt Đối
 
 **NovaMine** không chỉ là một ứng dụng ghi chép thu chi thông thường. Đây là một hệ thống quản lý tài chính cá nhân được thiết kế để tối ưu sự tiện lợi thông qua công nghệ AI, đồng thời đặt quyền riêng tư dữ liệu của người dùng lên hàng đầu.
 
