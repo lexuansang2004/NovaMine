@@ -190,6 +190,36 @@ export async function getStoredPhotos(): Promise<PhotoMetadata[]> {
   return db.photos.orderBy('createdAt').reverse().toArray()
 }
 
+export async function getUnlinkedPhotos(): Promise<PhotoMetadata[]> {
+  const photos = await db.photos
+    .filter((photo) => !photo.transactionId)
+    .toArray()
+
+  return photos.sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  )
+}
+
+export async function attachPhotoToTransaction(
+  photoId: string,
+  transactionId: number,
+): Promise<void> {
+  await db.photos.update(photoId, {
+    transactionId,
+  })
+}
+
+export async function getPhotosByTransactionIds(
+  transactionIds: number[],
+): Promise<PhotoMetadata[]> {
+  if (transactionIds.length === 0) {
+    return []
+  }
+
+  return db.photos.where('transactionId').anyOf(transactionIds).toArray()
+}
+
 export async function getPhotoBlob(photo: PhotoMetadata): Promise<Blob> {
   if (photo.storageType === 'opfs') {
     return readBlobFromOpfs(photo.storageKey)
