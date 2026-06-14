@@ -3,7 +3,6 @@ import { BrandMark } from '../../components/BrandMark/BrandMark'
 import type { DashboardSummary, Transaction } from '../../database/models'
 import { CameraCapture } from '../../features/camera/CameraCapture'
 import { Dashboard } from '../../features/dashboard/Dashboard'
-import { ManualTransactionForm } from '../../features/transactions/ManualTransactionForm'
 import { TransactionHistory } from '../../features/transactions/TransactionHistory'
 import { getDashboardSummary } from '../../repositories/dashboardRepository'
 import { getConfirmedTransactions } from '../../repositories/transactionsRepository'
@@ -15,12 +14,12 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 4',
-    value: 'Image storage',
+    label: 'Phase 5',
+    value: 'Type selection',
   },
   {
     label: 'Focus',
-    value: 'OPFS fallback',
+    value: 'Capture flow',
   },
 ]
 
@@ -84,8 +83,7 @@ export function HomePage() {
             onInitialBalanceUpdated={loadFinancialOverview}
           />
         ) : null}
-        <CameraCapture />
-        <ManualTransactionForm onTransactionCreated={loadFinancialOverview} />
+        <CameraCapture onTransactionCreated={loadFinancialOverview} />
         <TransactionHistory
           transactions={transactions}
           onTransactionDeleted={loadFinancialOverview}
