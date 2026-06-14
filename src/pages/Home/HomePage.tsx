@@ -83,7 +83,7 @@ export function HomePage() {
             onInitialBalanceUpdated={loadFinancialOverview}
           />
         ) : null}
-        <CameraCapture />
+        <CameraCapture onTransactionCreated={loadFinancialOverview} />
         <TransactionHistory
           transactions={transactions}
           onTransactionDeleted={loadFinancialOverview}

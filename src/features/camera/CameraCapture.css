@@ -76,7 +76,7 @@
   font-weight: 700;
 }
 
-.camera-capture button:last-child {
+.camera-capture__actions button:last-child {
   background: #4b5a54;
 }
 
@@ -178,6 +178,32 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.camera-capture__field {
+  display: grid;
+  gap: 6px;
+}
+
+.camera-capture__field span {
+  color: #16231f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.camera-capture__field input,
+.camera-capture__field textarea {
+  width: 100%;
+  border: 1px solid rgba(18, 37, 31, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #16231f;
+  font: inherit;
+  padding: 11px 12px;
+}
+
+.camera-capture__field textarea {
+  resize: vertical;
 }
 
 .camera-capture .camera-capture__type-button {
