@@ -1,14 +1,11 @@
 import type { Transaction } from '../../database/models'
 import { softDeleteTransaction } from '../../repositories/transactionsRepository'
+import { formatVnd } from '../../utils/currency'
 import './TransactionHistory.css'
 
 type TransactionHistoryProps = {
   transactions: Transaction[]
   onTransactionDeleted: () => Promise<void>
-}
-
-function formatVnd(amount: number) {
-  return `${amount.toLocaleString('vi-VN')} VNĐ`
 }
 
 function getTypeLabel(type: Transaction['type']) {
