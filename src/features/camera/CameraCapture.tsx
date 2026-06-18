@@ -13,10 +13,13 @@ import {
 } from '../../services/imageStorageService'
 import {
   isVietnameseSpeechRecognitionSupported,
+  listenVietnameseSpeech,
   listenVietnameseCategoryName,
+  logAmountVoiceInput,
   logCategoryVoiceInput,
 } from '../../services/speechService'
 import { formatVnd } from '../../utils/currency'
+import { formatVndCurrency, parseVndInput } from '../../utils/money'
 import './CameraCapture.css'
 
 const transactionTypeOptions: Array<{
@@ -61,9 +64,16 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [selectedTransactionType, setSelectedTransactionType] =
     useState<TransactionType | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
+  const [amountParseError, setAmountParseError] = useState('')
+  const [amountVoiceConfidence, setAmountVoiceConfidence] = useState<
+    number | null
+  >(null)
+  const [amountVoiceTranscript, setAmountVoiceTranscript] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
+  const [isAmountConfirmed, setIsAmountConfirmed] = useState(false)
   const [isCameraMirrored, setIsCameraMirrored] = useState(false)
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(false)
+  const [isListeningAmount, setIsListeningAmount] = useState(false)
   const [isListeningCategory, setIsListeningCategory] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
@@ -73,6 +83,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [transactionTitle, setTransactionTitle] = useState('')
   const [voiceConfidence, setVoiceConfidence] = useState<number | null>(null)
   const [voiceTranscript, setVoiceTranscript] = useState('')
+  const amountVoiceTranscriptRef = useRef('')
   const voiceTranscriptRef = useRef('')
 
   function revokeCapturedPhotoUrl() {
@@ -84,12 +95,17 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
   function resetTransactionDraft() {
     setSelectedTransactionType(null)
+    setAmountParseError('')
+    setAmountVoiceConfidence(null)
+    setAmountVoiceTranscript('')
+    setIsAmountConfirmed(false)
     setIsCategoryConfirmed(false)
     setTransactionAmount('')
     setTransactionNote('')
     setTransactionTitle('')
     setVoiceConfidence(null)
     setVoiceTranscript('')
+    amountVoiceTranscriptRef.current = ''
     voiceTranscriptRef.current = ''
   }
 
@@ -187,14 +203,38 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   function handleSelectTransactionType(type: TransactionType) {
     setSelectedTransactionType(type)
     setIsCategoryConfirmed(false)
+    setAmountParseError('')
+    setAmountVoiceConfidence(null)
+    setAmountVoiceTranscript('')
+    setIsAmountConfirmed(false)
     setTransactionAmount('')
     setTransactionDraftMessage('')
     setTransactionNote('')
     setTransactionTitle('')
     setVoiceConfidence(null)
     setVoiceTranscript('')
+    amountVoiceTranscriptRef.current = ''
     voiceTranscriptRef.current = ''
     setErrorMessage('')
+  }
+
+  function updateAmountDraftFromTranscript(transcript: string) {
+    amountVoiceTranscriptRef.current = transcript
+    setAmountVoiceTranscript(transcript)
+    setIsAmountConfirmed(false)
+
+    const parsedAmount = parseVndInput(transcript)
+
+    if (parsedAmount) {
+      setAmountParseError('')
+      setTransactionAmount(String(parsedAmount))
+      return parsedAmount
+    }
+
+    setTransactionAmount('')
+    setAmountParseError('Chưa đọc được số tiền hợp lệ. Bạn có thể sửa tay.')
+
+    return null
   }
 
   async function handleListenCategoryName() {
@@ -254,6 +294,73 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
     setTransactionTitle(normalizedCategoryName)
     setIsCategoryConfirmed(true)
+    setAmountParseError('')
+    setAmountVoiceConfidence(null)
+    setAmountVoiceTranscript('')
+    setIsAmountConfirmed(false)
+    setTransactionAmount('')
+    amountVoiceTranscriptRef.current = ''
+    setErrorMessage('')
+  }
+
+  async function handleListenAmount() {
+    setErrorMessage('')
+    setAmountParseError('')
+    setIsAmountConfirmed(false)
+    setIsListeningAmount(true)
+    setAmountVoiceConfidence(null)
+    setAmountVoiceTranscript('')
+    setTransactionAmount('')
+    amountVoiceTranscriptRef.current = ''
+
+    try {
+      const result = await listenVietnameseSpeech({
+        onTranscript: (update) => {
+          updateAmountDraftFromTranscript(update.transcript)
+
+          if (update.confidence !== null) {
+            setAmountVoiceConfidence(update.confidence)
+          }
+        },
+      })
+
+      amountVoiceTranscriptRef.current = result.transcript
+      setAmountVoiceConfidence(result.confidence)
+      updateAmountDraftFromTranscript(result.transcript)
+      await logAmountVoiceInput({
+        confidence: result.confidence,
+        status: 'recognized',
+        transcript: result.transcript,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Không thể nhận diện số tiền.'
+
+      setErrorMessage(message)
+      await logAmountVoiceInput({
+        errorMessage: message,
+        status: 'failed',
+        transcript: amountVoiceTranscriptRef.current,
+      })
+    } finally {
+      setIsListeningAmount(false)
+    }
+  }
+
+  function handleConfirmAmount() {
+    const parsedAmount = parseVndInput(amountVoiceTranscript)
+
+    if (!parsedAmount) {
+      setAmountParseError('Số tiền chưa hợp lệ. Vui lòng nói lại hoặc sửa tay.')
+      setErrorMessage('Không thể xác nhận số tiền chưa hợp lệ.')
+      return
+    }
+
+    setTransactionAmount(String(parsedAmount))
+    setAmountParseError('')
+    setIsAmountConfirmed(true)
     setErrorMessage('')
   }
 
@@ -275,8 +382,12 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
     const normalizedAmount = Number(transactionAmount)
 
-    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-      setErrorMessage('Vui lòng nhập số tiền VNĐ hợp lệ.')
+    if (
+      !isAmountConfirmed ||
+      !Number.isFinite(normalizedAmount) ||
+      normalizedAmount <= 0
+    ) {
+      setErrorMessage('Vui lòng xác nhận số tiền VNĐ hợp lệ.')
       return
     }
 
@@ -297,6 +408,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         confidence: voiceConfidence,
         status: 'confirmed',
         transcript: transactionTitle,
+        transactionId,
+      })
+
+      await logAmountVoiceInput({
+        confidence: amountVoiceConfidence,
+        status: 'confirmed',
+        transcript: amountVoiceTranscript || transactionAmount,
         transactionId,
       })
 
@@ -326,11 +444,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     >
       <div className="camera-capture__header">
         <div>
-          <p className="camera-capture__eyebrow">Phase 6</p>
-          <h2 id="camera-capture-title">Chụp ảnh và nhập tên loại phí</h2>
+          <p className="camera-capture__eyebrow">Phase 7</p>
+          <h2 id="camera-capture-title">Chụp ảnh và nhập giao dịch bằng giọng nói</h2>
           <p>
             Chụp một ảnh, chọn loại giao dịch, nói tên loại phí bằng tiếng Việt
-            rồi xác nhận để nhập thông tin tiếp theo.
+            và nói số tiền VNĐ trước khi lưu.
           </p>
         </div>
 
@@ -501,29 +619,83 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               ) : null}
 
               {selectedTransactionType && isCategoryConfirmed ? (
-                <div className="camera-capture__info-step">
-                  <h3>Nhập thông tin</h3>
+                <div className="camera-capture__voice-step">
+                  <h3>Số tiền VNĐ bằng giọng nói</h3>
                   <p>
-                    Đang nhập giao dịch{' '}
-                    {transactionTypeLabels[selectedTransactionType].toLowerCase()}
-                    .
+                    Nói số tiền, ví dụ: 20k hoặc 20 nghìn.
                   </p>
 
                   <label className="camera-capture__field">
-                    <span>Số tiền VNĐ</span>
+                    <span>Kết quả số tiền</span>
                     <input
-                      inputMode="numeric"
-                      min="0"
-                      placeholder="Ví dụ: 150000"
-                      step="1000"
-                      type="number"
-                      value={transactionAmount}
-                      onChange={(event) =>
-                        setTransactionAmount(event.target.value)
-                      }
+                      autoComplete="off"
+                      inputMode="text"
+                      placeholder="Ví dụ: 20k, 20 nghìn, 20.000"
+                      value={amountVoiceTranscript}
+                      onChange={(event) => {
+                        updateAmountDraftFromTranscript(event.target.value)
+                      }}
                     />
                   </label>
 
+                  {isListeningAmount ? (
+                    <p className="camera-capture__listening">
+                      Đang nghe số tiền, chữ sẽ hiện trong lúc bạn nói...
+                    </p>
+                  ) : null}
+
+                  {transactionAmount ? (
+                    <p className="camera-capture__parsed-money">
+                      Sẽ lưu: {formatVndCurrency(Number(transactionAmount))}
+                    </p>
+                  ) : null}
+
+                  {amountParseError ? (
+                    <p className="camera-capture__hint">{amountParseError}</p>
+                  ) : null}
+
+                  {amountVoiceConfidence !== null ? (
+                    <p>
+                      Độ tin cậy khoảng{' '}
+                      {Math.round(amountVoiceConfidence * 100)}%.
+                    </p>
+                  ) : null}
+
+                  <div className="camera-capture__voice-actions">
+                    <button
+                      disabled={
+                        isListeningAmount ||
+                        !isVietnameseSpeechRecognitionSupported()
+                      }
+                      onClick={() => {
+                        void handleListenAmount()
+                      }}
+                      type="button"
+                    >
+                      {amountVoiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                    </button>
+                    <button
+                      disabled={!transactionAmount || isListeningAmount}
+                      onClick={handleConfirmAmount}
+                      type="button"
+                    >
+                      Xác nhận
+                    </button>
+                  </div>
+
+                  {isAmountConfirmed ? (
+                    <p className="camera-capture__success">
+                      Đã xác nhận: {formatVndCurrency(Number(transactionAmount))}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {selectedTransactionType &&
+              isCategoryConfirmed &&
+              isAmountConfirmed ? (
+                <div className="camera-capture__info-step">
+                  <h3>Ghi chú</h3>
                   <label className="camera-capture__field">
                     <span>Ghi chú</span>
                     <textarea
@@ -539,7 +711,10 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               <div className="camera-capture__draft-actions">
                 <button
                   disabled={
-                    !selectedTransactionType || !isCategoryConfirmed || isSaving
+                    !selectedTransactionType ||
+                    !isCategoryConfirmed ||
+                    !isAmountConfirmed ||
+                    isSaving
                   }
                   onClick={() => {
                     void handleSaveTransactionDraft()

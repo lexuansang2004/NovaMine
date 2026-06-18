@@ -68,7 +68,7 @@ export type VoiceInputStatus = 'confirmed' | 'failed' | 'recognized'
 export type VoiceInput = {
   id?: number
   transactionId?: number | null
-  fieldName: 'categoryName'
+  fieldName: 'amountVnd' | 'categoryName'
   language: 'vi-VN'
   transcript: string
   confidence?: number | null
