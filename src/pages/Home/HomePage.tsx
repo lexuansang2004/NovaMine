@@ -3,6 +3,7 @@ import { BrandMark } from '../../components/BrandMark/BrandMark'
 import type { DashboardSummary, Transaction } from '../../database/models'
 import { CameraCapture } from '../../features/camera/CameraCapture'
 import { Dashboard } from '../../features/dashboard/Dashboard'
+import { StorageQuotaPanel } from '../../features/storage/StorageQuotaPanel'
 import { TransactionHistory } from '../../features/transactions/TransactionHistory'
 import { getDashboardSummary } from '../../repositories/dashboardRepository'
 import { getConfirmedTransactions } from '../../repositories/transactionsRepository'
@@ -14,8 +15,8 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 8',
-    value: 'Full capture',
+    label: 'Phase 10',
+    value: 'Storage care',
   },
   {
     label: 'Focus',
@@ -77,6 +78,7 @@ export function HomePage() {
       </div>
 
       <div className="home-page__workspace">
+        <StorageQuotaPanel />
         {dashboardSummary ? (
           <Dashboard
             summary={dashboardSummary}
