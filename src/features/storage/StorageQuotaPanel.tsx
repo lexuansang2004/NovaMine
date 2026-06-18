@@ -91,19 +91,10 @@ export function StorageQuotaPanel() {
     <section className="storage-quota" aria-labelledby="storage-quota-title">
       <div className="storage-quota__header">
         <div>
-          <p className="storage-quota__eyebrow">Phase 10</p>
-          <h2 id="storage-quota-title">Dung lượng lưu trữ</h2>
-          <p>Theo dõi storage local và dọn ảnh chưa gắn giao dịch.</p>
+          <p className="storage-quota__eyebrow">Storage care</p>
+          <h2 id="storage-quota-title">Quản lý dung lượng local</h2>
+          <p>Theo dõi storage và dọn ảnh chưa gắn giao dịch khi cần.</p>
         </div>
-        <button
-          disabled={isCleaning}
-          onClick={() => {
-            void handleCleanupOrphanPhotos()
-          }}
-          type="button"
-        >
-          {isCleaning ? 'Đang dọn...' : 'Dọn ảnh orphan'}
-        </button>
       </div>
 
       {isLoading ? (
@@ -126,12 +117,26 @@ export function StorageQuotaPanel() {
             <span style={{ width: `${Math.min(usagePercent, 100)}%` }} />
           </div>
           {quotaSummary.isSupported ? (
-            <p>{usagePercent}% dung lượng local đã được sử dụng.</p>
+            <p>
+              {quotaSummary.shouldWarn
+                ? `${usagePercent}% dung lượng local đã được sử dụng.`
+                : `Dung lượng local đang ổn (${usagePercent}% đã dùng).`}
+            </p>
           ) : (
             <p>NovaMine vẫn hoạt động, nhưng không thể đọc quota hiện tại.</p>
           )}
         </div>
       ) : null}
+
+      <button
+        disabled={isCleaning}
+        onClick={() => {
+          void handleCleanupOrphanPhotos()
+        }}
+        type="button"
+      >
+        {isCleaning ? 'Đang dọn...' : 'Dọn ảnh orphan'}
+      </button>
 
       {quotaSummary?.shouldWarn ? (
         <p className="storage-quota__warning">

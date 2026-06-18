@@ -15,8 +15,8 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 10',
-    value: 'Storage care',
+    label: 'Storage',
+    value: 'Healthy local data',
   },
   {
     label: 'Focus',
@@ -78,7 +78,6 @@ export function HomePage() {
       </div>
 
       <div className="home-page__workspace">
-        <StorageQuotaPanel />
         {dashboardSummary ? (
           <Dashboard
             summary={dashboardSummary}
@@ -90,6 +89,7 @@ export function HomePage() {
           transactions={transactions}
           onTransactionDeleted={loadFinancialOverview}
         />
+        <StorageQuotaPanel />
       </div>
     </section>
   )
