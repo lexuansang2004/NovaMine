@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
-import type { PhotoMetadata, Transaction } from '../../database/models'
+import type {
+  LocationRecord,
+  PhotoMetadata,
+  Transaction,
+} from '../../database/models'
 import { softDeleteTransaction } from '../../repositories/transactionsRepository'
 import {
   getPhotoBlob,
   getPhotosByTransactionIds,
 } from '../../services/imageStorageService'
+import {
+  formatLocationAddress,
+  getLocationsByIds,
+} from '../../services/locationService'
 import { formatVnd } from '../../utils/currency'
 import './TransactionHistory.css'
 
@@ -27,6 +35,14 @@ function formatReceiptTimestamp(value: string) {
   }).format(new Date(value))
 }
 
+function getTransactionAmount(transaction: Transaction) {
+  return transaction.amountVnd ?? transaction.amount
+}
+
+function getTransactionCategoryName(transaction: Transaction) {
+  return transaction.categoryName ?? transaction.category ?? transaction.title
+}
+
 type TransactionPhotoPreview = {
   metadata: PhotoMetadata
   url: string
@@ -38,6 +54,9 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [photoPreviewsByTransactionId, setPhotoPreviewsByTransactionId] =
     useState<Record<number, TransactionPhotoPreview>>({})
+  const [locationsById, setLocationsById] = useState<
+    Record<number, LocationRecord>
+  >({})
 
   useEffect(() => {
     let isActive = true
@@ -85,6 +104,36 @@ export function TransactionHistory({
     }
   }, [transactions])
 
+  useEffect(() => {
+    let isActive = true
+    const locationIds = transactions
+      .map((transaction) => transaction.locationId)
+      .filter((locationId): locationId is number => Boolean(locationId))
+
+    void getLocationsByIds(locationIds).then((locations) => {
+      if (!isActive) {
+        return
+      }
+
+      setLocationsById(
+        locations.reduce<Record<number, LocationRecord>>(
+          (accumulator, location) => {
+            if (location.id) {
+              accumulator[location.id] = location
+            }
+
+            return accumulator
+          },
+          {},
+        ),
+      )
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [transactions])
+
   async function handleDelete(transactionId: number) {
     await softDeleteTransaction(transactionId)
     await onTransactionDeleted()
@@ -96,6 +145,11 @@ export function TransactionHistory({
         <div>
           <h2 id="transactions-title">Lịch sử giao dịch</h2>
           <p>Chỉ hiển thị giao dịch đã xác nhận và chưa xóa mềm.</p>
+          {transactions.some((transaction) => transaction.locationId) ? (
+            <p className="transaction-history__attribution">
+              Dữ liệu địa chỉ © OpenStreetMap contributors.
+            </p>
+          ) : null}
         </div>
         <span>{transactions.length}</span>
       </div>
@@ -116,16 +170,26 @@ export function TransactionHistory({
                   <div className="transaction-history__photo-overlay">
                     <strong>{formatReceiptTimestamp(transaction.occurredAt)}</strong>
                     <span>
-                      {transaction.title} | {formatVnd(transaction.amount)}
+                      {getTransactionCategoryName(transaction)} |{' '}
+                      {formatVnd(getTransactionAmount(transaction))}
                     </span>
                   </div>
                 </div>
               ) : null}
 
               <div className="transaction-history__info">
-                <strong>{transaction.title}</strong>
+                <strong>{getTransactionCategoryName(transaction)}</strong>
                 <span>{getTypeLabel(transaction.type)}</span>
                 {transaction.note ? <p>{transaction.note}</p> : null}
+                <small>
+                  {transaction.dateKey ? `Ngày ${transaction.dateKey}` : null}
+                  {transaction.hourKey ? ` | Giờ ${transaction.hourKey}` : null}
+                </small>
+                <small className="transaction-history__location">
+                  {transaction.locationId
+                    ? formatLocationAddress(locationsById[transaction.locationId])
+                    : 'Không có địa chỉ'}
+                </small>
               </div>
 
               <div className="transaction-history__meta">
@@ -133,7 +197,7 @@ export function TransactionHistory({
                   className={`transaction-history__amount transaction-history__amount--${transaction.type}`}
                 >
                   {transaction.type === 'income' ? '+' : '-'}
-                  {formatVnd(transaction.amount)}
+                  {formatVnd(getTransactionAmount(transaction))}
                 </strong>
                 <button
                   type="button"
