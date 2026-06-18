@@ -75,7 +75,7 @@ export function isVietnameseSpeechRecognitionSupported() {
   return Boolean(getSpeechRecognitionConstructor())
 }
 
-export async function listenVietnameseCategoryName({
+export async function listenVietnameseSpeech({
   onTranscript,
 }: {
   onTranscript?: (update: SpeechTranscriptUpdate) => void
@@ -163,6 +163,14 @@ export async function listenVietnameseCategoryName({
   })
 }
 
+export function listenVietnameseCategoryName({
+  onTranscript,
+}: {
+  onTranscript?: (update: SpeechTranscriptUpdate) => void
+} = {}) {
+  return listenVietnameseSpeech({ onTranscript })
+}
+
 export async function logCategoryVoiceInput({
   confidence = null,
   errorMessage = null,
@@ -181,6 +189,31 @@ export async function logCategoryVoiceInput({
     createdAt: new Date().toISOString(),
     errorMessage,
     fieldName: 'categoryName',
+    language: SPEECH_LANGUAGE,
+    status,
+    transactionId,
+    transcript,
+  })
+}
+
+export async function logAmountVoiceInput({
+  confidence = null,
+  errorMessage = null,
+  status,
+  transcript,
+  transactionId = null,
+}: {
+  confidence?: number | null
+  errorMessage?: string | null
+  status: VoiceInputStatus
+  transcript: string
+  transactionId?: number | null
+}) {
+  return db.voice_inputs.add({
+    confidence,
+    createdAt: new Date().toISOString(),
+    errorMessage,
+    fieldName: 'amountVnd',
     language: SPEECH_LANGUAGE,
     status,
     transactionId,
