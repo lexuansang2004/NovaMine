@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   AppSetting,
+  LocationRecord,
   PhotoBlobRecord,
   PhotoMetadata,
   Transaction,
@@ -9,6 +10,7 @@ import type {
 
 class NovaMineDatabase extends Dexie {
   app_settings!: Table<AppSetting, string>
+  locations!: Table<LocationRecord, number>
   photo_blobs!: Table<PhotoBlobRecord, string>
   photos!: Table<PhotoMetadata, string>
   transactions!: Table<Transaction, number>
@@ -38,6 +40,16 @@ class NovaMineDatabase extends Dexie {
       photo_blobs: 'id, createdAt',
       photos: 'id, transactionId, createdAt, storageType',
       transactions: '++id, status, type, category, occurredAt, createdAt, deletedAt',
+      voice_inputs: '++id, transactionId, fieldName, language, status, createdAt',
+    })
+
+    this.version(5).stores({
+      app_settings: 'key',
+      locations: '++id, capturedAt',
+      photo_blobs: 'id, createdAt',
+      photos: 'id, transactionId, createdAt, storageType',
+      transactions:
+        '++id, status, type, category, categoryName, dateKey, hourKey, photoId, locationId, occurredAt, createdAt, deletedAt',
       voice_inputs: '++id, transactionId, fieldName, language, status, createdAt',
     })
   }

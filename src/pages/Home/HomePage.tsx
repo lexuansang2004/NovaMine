@@ -14,12 +14,12 @@ const homeHighlights = [
     value: 'Data stays on device',
   },
   {
-    label: 'Phase 7',
-    value: 'Voice amount',
+    label: 'Phase 8',
+    value: 'Full capture',
   },
   {
     label: 'Focus',
-    value: 'VNĐ parser',
+    value: 'Confirmed flow',
   },
 ]
 

@@ -63,18 +63,19 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const summary = confirmedTransactions.reduce(
     (totals, transaction) => {
       const transactionIsToday = isToday(transaction.occurredAt)
+      const amountVnd = transaction.amountVnd ?? transaction.amount
 
       if (transaction.type === 'income') {
-        totals.totalIncomeVnd += transaction.amount
+        totals.totalIncomeVnd += amountVnd
 
         if (transactionIsToday) {
-          totals.todayIncomeVnd += transaction.amount
+          totals.todayIncomeVnd += amountVnd
         }
       } else {
-        totals.totalExpenseVnd += transaction.amount
+        totals.totalExpenseVnd += amountVnd
 
         if (transactionIsToday) {
-          totals.todayExpenseVnd += transaction.amount
+          totals.todayExpenseVnd += amountVnd
         }
       }
 
