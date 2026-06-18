@@ -123,6 +123,10 @@
   overflow-wrap: anywhere;
 }
 
+.transaction-history__attribution {
+  font-size: 12px;
+}
+
 .transaction-history__info p {
   max-width: 480px;
   margin: 0;

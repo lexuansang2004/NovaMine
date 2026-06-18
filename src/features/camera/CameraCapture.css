@@ -225,6 +225,11 @@
   justify-self: start;
 }
 
+.camera-capture__attribution {
+  color: #66746f;
+  font-size: 12px;
+}
+
 .camera-capture__hint {
   color: #8b2f24;
   font-weight: 700;

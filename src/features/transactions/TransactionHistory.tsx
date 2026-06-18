@@ -145,6 +145,11 @@ export function TransactionHistory({
         <div>
           <h2 id="transactions-title">Lịch sử giao dịch</h2>
           <p>Chỉ hiển thị giao dịch đã xác nhận và chưa xóa mềm.</p>
+          {transactions.some((transaction) => transaction.locationId) ? (
+            <p className="transaction-history__attribution">
+              Dữ liệu địa chỉ © OpenStreetMap contributors.
+            </p>
+          ) : null}
         </div>
         <span>{transactions.length}</span>
       </div>

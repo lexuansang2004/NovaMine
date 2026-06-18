@@ -744,6 +744,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       {locationPreviewMessage ||
                         'Chưa lấy vị trí. Bạn vẫn có thể lưu giao dịch không kèm địa chỉ.'}
                     </p>
+                    {locationDraft ? (
+                      <small className="camera-capture__attribution">
+                        Dữ liệu địa chỉ © OpenStreetMap contributors.
+                      </small>
+                    ) : null}
                     <button
                       disabled={isResolvingLocation}
                       onClick={() => {
