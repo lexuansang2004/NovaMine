@@ -11,6 +11,11 @@ import {
   attachPhotoToTransaction,
   saveImage,
 } from '../../services/imageStorageService'
+import {
+  isVietnameseSpeechRecognitionSupported,
+  listenVietnameseCategoryName,
+  logCategoryVoiceInput,
+} from '../../services/speechService'
 import { formatVnd } from '../../utils/currency'
 import './CameraCapture.css'
 
@@ -58,12 +63,17 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [isCameraMirrored, setIsCameraMirrored] = useState(false)
+  const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(false)
+  const [isListeningCategory, setIsListeningCategory] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
   const [transactionAmount, setTransactionAmount] = useState('')
   const [transactionDraftMessage, setTransactionDraftMessage] = useState('')
   const [transactionNote, setTransactionNote] = useState('')
   const [transactionTitle, setTransactionTitle] = useState('')
+  const [voiceConfidence, setVoiceConfidence] = useState<number | null>(null)
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const voiceTranscriptRef = useRef('')
 
   function revokeCapturedPhotoUrl() {
     if (capturedPhotoUrlRef.current) {
@@ -74,9 +84,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
   function resetTransactionDraft() {
     setSelectedTransactionType(null)
+    setIsCategoryConfirmed(false)
     setTransactionAmount('')
     setTransactionNote('')
     setTransactionTitle('')
+    setVoiceConfidence(null)
+    setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
   }
 
   function clearCapturedPhotoDraft() {
@@ -172,7 +186,74 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
   function handleSelectTransactionType(type: TransactionType) {
     setSelectedTransactionType(type)
+    setIsCategoryConfirmed(false)
+    setTransactionAmount('')
     setTransactionDraftMessage('')
+    setTransactionNote('')
+    setTransactionTitle('')
+    setVoiceConfidence(null)
+    setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
+    setErrorMessage('')
+  }
+
+  async function handleListenCategoryName() {
+    setErrorMessage('')
+    setIsCategoryConfirmed(false)
+    setIsListeningCategory(true)
+    setTransactionTitle('')
+    setVoiceConfidence(null)
+    setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
+
+    try {
+      const result = await listenVietnameseCategoryName({
+        onTranscript: (update) => {
+          voiceTranscriptRef.current = update.transcript
+          setVoiceTranscript(update.transcript)
+
+          if (update.confidence !== null) {
+            setVoiceConfidence(update.confidence)
+          }
+        },
+      })
+
+      voiceTranscriptRef.current = result.transcript
+      setVoiceTranscript(result.transcript)
+      setVoiceConfidence(result.confidence)
+      setTransactionTitle(result.transcript)
+      await logCategoryVoiceInput({
+        confidence: result.confidence,
+        status: 'recognized',
+        transcript: result.transcript,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Không thể nhận diện tên loại phí.'
+
+      setErrorMessage(message)
+      await logCategoryVoiceInput({
+        errorMessage: message,
+        status: 'failed',
+        transcript: voiceTranscriptRef.current,
+      })
+    } finally {
+      setIsListeningCategory(false)
+    }
+  }
+
+  function handleConfirmCategoryName() {
+    const normalizedCategoryName = voiceTranscript.trim()
+
+    if (!normalizedCategoryName) {
+      setErrorMessage('Vui lòng bấm micro để nhập tên loại phí trước.')
+      return
+    }
+
+    setTransactionTitle(normalizedCategoryName)
+    setIsCategoryConfirmed(true)
     setErrorMessage('')
   }
 
@@ -187,8 +268,8 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       return
     }
 
-    if (!transactionTitle.trim()) {
-      setErrorMessage('Vui lòng nhập tên loại phí.')
+    if (!isCategoryConfirmed || !transactionTitle.trim()) {
+      setErrorMessage('Vui lòng xác nhận tên loại phí bằng giọng nói.')
       return
     }
 
@@ -210,6 +291,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         note: transactionNote,
         title: transactionTitle,
         type: selectedTransactionType,
+      })
+
+      await logCategoryVoiceInput({
+        confidence: voiceConfidence,
+        status: 'confirmed',
+        transcript: transactionTitle,
+        transactionId,
       })
 
       await attachPhotoToTransaction(savedPhoto.id, transactionId)
@@ -238,11 +326,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     >
       <div className="camera-capture__header">
         <div>
-          <p className="camera-capture__eyebrow">Phase 5</p>
-          <h2 id="camera-capture-title">Chụp ảnh và chọn loại giao dịch</h2>
+          <p className="camera-capture__eyebrow">Phase 6</p>
+          <h2 id="camera-capture-title">Chụp ảnh và nhập tên loại phí</h2>
           <p>
-            Chụp một ảnh, ghi thông tin giao dịch ngay trên ảnh vừa chụp, rồi
-            lưu vào lịch sử giao dịch.
+            Chụp một ảnh, chọn loại giao dịch, nói tên loại phí bằng tiếng Việt
+            rồi xác nhận để nhập thông tin tiếp theo.
           </p>
         </div>
 
@@ -304,7 +392,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                     : 'Chưa chọn loại giao dịch'}
                 </span>
                 <span>
-                  {transactionTitle.trim() || 'Chưa nhập tên loại phí'}
+                  {voiceTranscript.trim() ||
+                    transactionTitle.trim() ||
+                    'Chưa nhập tên loại phí'}
                   {transactionAmount
                     ? ` | ${formatVnd(Number(transactionAmount) || 0)}`
                     : ''}
@@ -340,6 +430,77 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               </div>
 
               {selectedTransactionType ? (
+                <div className="camera-capture__voice-step">
+                  <h3>Tên loại phí bằng giọng nói</h3>
+                  <p>
+                    Nói tên loại phí bằng tiếng Việt, ví dụ: ăn uống.
+                  </p>
+
+                  <label className="camera-capture__field">
+                    <span>Kết quả nhận diện</span>
+                    <input
+                      autoComplete="off"
+                      placeholder="Bấm micro để nhận diện"
+                      value={voiceTranscript}
+                      onChange={(event) => {
+                        const nextTranscript = event.target.value
+
+                        voiceTranscriptRef.current = nextTranscript
+                        setVoiceTranscript(nextTranscript)
+                        setIsCategoryConfirmed(false)
+                      }}
+                    />
+                  </label>
+
+                  {isListeningCategory ? (
+                    <p className="camera-capture__listening">
+                      Đang nghe, chữ sẽ hiện trong lúc bạn nói...
+                    </p>
+                  ) : null}
+
+                  {voiceConfidence !== null ? (
+                    <p>
+                      Độ tin cậy khoảng {Math.round(voiceConfidence * 100)}%.
+                    </p>
+                  ) : null}
+
+                  <div className="camera-capture__voice-actions">
+                    <button
+                      disabled={
+                        isListeningCategory ||
+                        !isVietnameseSpeechRecognitionSupported()
+                      }
+                      onClick={() => {
+                        void handleListenCategoryName()
+                      }}
+                      type="button"
+                    >
+                      {voiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                    </button>
+                    <button
+                      disabled={!voiceTranscript.trim() || isListeningCategory}
+                      onClick={handleConfirmCategoryName}
+                      type="button"
+                    >
+                      Xác nhận
+                    </button>
+                  </div>
+
+                  {!isVietnameseSpeechRecognitionSupported() ? (
+                    <p className="camera-capture__hint">
+                      Trình duyệt hiện tại chưa hỗ trợ nhận diện giọng nói.
+                    </p>
+                  ) : null}
+
+                  {isCategoryConfirmed ? (
+                    <p className="camera-capture__success">
+                      Đã xác nhận: {transactionTitle}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {selectedTransactionType && isCategoryConfirmed ? (
                 <div className="camera-capture__info-step">
                   <h3>Nhập thông tin</h3>
                   <p>
@@ -347,18 +508,6 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                     {transactionTypeLabels[selectedTransactionType].toLowerCase()}
                     .
                   </p>
-
-                  <label className="camera-capture__field">
-                    <span>Tên loại phí</span>
-                    <input
-                      autoComplete="off"
-                      placeholder="Ví dụ: Lương, Ăn uống, Di chuyển"
-                      value={transactionTitle}
-                      onChange={(event) =>
-                        setTransactionTitle(event.target.value)
-                      }
-                    />
-                  </label>
 
                   <label className="camera-capture__field">
                     <span>Số tiền VNĐ</span>
@@ -389,7 +538,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
               <div className="camera-capture__draft-actions">
                 <button
-                  disabled={!selectedTransactionType || isSaving}
+                  disabled={
+                    !selectedTransactionType || !isCategoryConfirmed || isSaving
+                  }
                   onClick={() => {
                     void handleSaveTransactionDraft()
                   }}
