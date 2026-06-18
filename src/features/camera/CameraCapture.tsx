@@ -158,10 +158,19 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       streamRef.current = null
       setIsCameraMirrored(false)
       setIsCameraActive(false)
+      const cameraErrorName = error instanceof DOMException ? error.name : ''
+      const friendlyCameraMessage =
+        cameraErrorName === 'NotFoundError'
+          ? 'Không tìm thấy camera trên thiết bị này.'
+          : cameraErrorName === 'NotAllowedError'
+            ? 'Bạn đã từ chối quyền camera. Hãy cấp quyền camera để chụp ảnh giao dịch.'
+            : null
+
       setErrorMessage(
-        error instanceof Error
+        friendlyCameraMessage ??
+          (error instanceof Error
           ? error.message
-          : 'Không thể bật camera. Vui lòng kiểm tra quyền truy cập camera.',
+          : 'Không thể bật camera. Vui lòng kiểm tra quyền truy cập camera.'),
       )
     } finally {
       setIsStartingCamera(false)
@@ -484,40 +493,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     >
       <div className="camera-capture__header">
         <div>
-          <p className="camera-capture__eyebrow">Phase 8</p>
           <h2 id="camera-capture-title">Chụp ảnh và lưu giao dịch hoàn chỉnh</h2>
           <p>
             Chụp một ảnh, chọn loại giao dịch, nói tên loại phí bằng tiếng Việt
             và số tiền VNĐ, lấy vị trí nếu được phép rồi lưu vào lịch sử.
           </p>
-        </div>
-
-        <div className="camera-capture__actions">
-          <button
-            disabled={isStartingCamera}
-            onClick={() => {
-              void handleStartCamera()
-            }}
-            type="button"
-          >
-            {isStartingCamera ? 'Đang bật...' : 'Bật camera'}
-          </button>
-          <button
-            disabled={!isCameraActive || isSaving}
-            onClick={() => {
-              void handleCaptureImage()
-            }}
-            type="button"
-          >
-            {isSaving ? 'Đang xử lý...' : 'Chụp ảnh'}
-          </button>
-          <button
-            disabled={!isCameraActive}
-            onClick={handleStopCamera}
-            type="button"
-          >
-            Tắt
-          </button>
         </div>
       </div>
 
@@ -528,6 +508,34 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       {transactionDraftMessage ? (
         <p className="camera-capture__success">{transactionDraftMessage}</p>
       ) : null}
+
+      <div className="camera-capture__actions" aria-label="Điều khiển camera">
+        <button
+          disabled={isStartingCamera}
+          onClick={() => {
+            void handleStartCamera()
+          }}
+          type="button"
+        >
+          {isStartingCamera ? 'Đang bật...' : 'Bật camera'}
+        </button>
+        <button
+          disabled={!isCameraActive || isSaving}
+          onClick={() => {
+            void handleCaptureImage()
+          }}
+          type="button"
+        >
+          {isSaving ? 'Đang xử lý...' : 'Chụp ảnh'}
+        </button>
+        <button
+          disabled={!isCameraActive}
+          onClick={handleStopCamera}
+          type="button"
+        >
+          Tắt camera
+        </button>
+      </div>
 
       <div className="camera-capture__content">
         <div className="camera-capture__preview">

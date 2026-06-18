@@ -23,10 +23,8 @@
 }
 
 .camera-capture__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  gap: 8px;
 }
 
 .camera-capture__eyebrow {
@@ -59,10 +57,10 @@
 }
 
 .camera-capture__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  justify-content: flex-end;
+  max-width: 520px;
 }
 
 .camera-capture button {
@@ -77,7 +75,7 @@
 }
 
 .camera-capture__actions button:last-child {
-  background: #4b5a54;
+  background: #355149;
 }
 
 .camera-capture button:disabled {
@@ -103,8 +101,9 @@
 
 .camera-capture__content {
   display: grid;
-  grid-template-columns: minmax(280px, 1.1fr) minmax(260px, 0.9fr);
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .camera-capture__preview,
@@ -117,7 +116,8 @@
 
 .camera-capture__preview {
   position: relative;
-  min-height: 300px;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
 }
 
 .camera-capture video,
@@ -129,7 +129,7 @@
 }
 
 .camera-capture video {
-  min-height: 300px;
+  min-height: 0;
   background: #16231f;
 }
 
@@ -300,7 +300,8 @@
 
 .camera-capture__empty-result {
   display: grid;
-  min-height: 220px;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
   align-content: center;
   justify-items: center;
   padding: 24px;
@@ -314,16 +315,9 @@
     grid-template-columns: 1fr;
   }
 
-  .camera-capture__header {
-    display: grid;
-  }
-
-  .camera-capture__actions {
-    justify-content: flex-start;
-  }
-
   .camera-capture__type-options,
   .camera-capture__voice-actions,
+  .camera-capture__actions,
   .camera-capture__draft-actions {
     grid-template-columns: 1fr;
   }

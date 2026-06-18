@@ -108,7 +108,7 @@
 
 .dashboard__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -124,7 +124,6 @@
 }
 
 .dashboard__card--primary {
-  grid-column: span 2;
   background: #eef5ec;
 }
 
@@ -134,8 +133,12 @@
   line-height: 1.2;
 }
 
-.dashboard__card--primary strong {
-  font-size: 32px;
+.dashboard__card--income {
+  background: #eef8f4;
+}
+
+.dashboard__card--expense {
+  background: #fff1ee;
 }
 
 .dashboard__card--income strong {
@@ -162,9 +165,7 @@
 }
 
 @media (max-width: 560px) {
-  .dashboard__grid,
-  .dashboard__card--primary {
+  .dashboard__grid {
     grid-template-columns: 1fr;
-    grid-column: auto;
   }
 }

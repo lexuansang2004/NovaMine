@@ -302,7 +302,11 @@ export function TransactionHistory({
                     </span>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="transaction-history__photo-frame transaction-history__photo-frame--empty">
+                  <span>{transaction.type === 'income' ? '+' : '-'}</span>
+                </div>
+              )}
 
               <div className="transaction-history__info">
                 <strong>{getTransactionCategoryName(transaction)}</strong>
@@ -327,6 +331,9 @@ export function TransactionHistory({
                   {formatVnd(getTransactionAmount(transaction))}
                 </strong>
                 <button
+                  aria-label={`Xóa mềm giao dịch ${getTransactionCategoryName(
+                    transaction,
+                  )}`}
                   type="button"
                   onClick={() => {
                     if (transaction.id) {
@@ -334,7 +341,8 @@ export function TransactionHistory({
                     }
                   }}
                 >
-                  Xóa mềm
+                  <span aria-hidden="true">×</span>
+                  Xóa
                 </button>
               </div>
             </li>
