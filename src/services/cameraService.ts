@@ -28,6 +28,13 @@ export function stopCamera(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop())
 }
 
+export function shouldMirrorCamera(stream: MediaStream) {
+  const [videoTrack] = stream.getVideoTracks()
+  const facingMode = videoTrack?.getSettings().facingMode
+
+  return facingMode !== 'environment'
+}
+
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -47,6 +54,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) 
 
 export async function captureImageFromVideo(
   videoElement: HTMLVideoElement,
+  { mirror = false }: { mirror?: boolean } = {},
 ): Promise<Blob> {
   const { videoHeight, videoWidth } = videoElement
 
@@ -62,6 +70,11 @@ export async function captureImageFromVideo(
 
   if (!context) {
     throw new Error('Không thể tạo canvas để chụp ảnh.')
+  }
+
+  if (mirror) {
+    context.translate(videoWidth, 0)
+    context.scale(-1, 1)
   }
 
   context.drawImage(videoElement, 0, 0, videoWidth, videoHeight)
