@@ -119,6 +119,10 @@
   font-size: 12px;
 }
 
+.transaction-history__location {
+  overflow-wrap: anywhere;
+}
+
 .transaction-history__info p {
   max-width: 480px;
   margin: 0;

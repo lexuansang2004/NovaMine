@@ -92,5 +92,6 @@ export type LocationRecord = {
   latitude: number
   longitude: number
   accuracy?: number | null
+  addressText?: string | null
   capturedAt: string
 }

@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
-import type { PhotoMetadata, Transaction } from '../../database/models'
+import type {
+  LocationRecord,
+  PhotoMetadata,
+  Transaction,
+} from '../../database/models'
 import { softDeleteTransaction } from '../../repositories/transactionsRepository'
 import {
   getPhotoBlob,
   getPhotosByTransactionIds,
 } from '../../services/imageStorageService'
+import {
+  formatLocationAddress,
+  getLocationsByIds,
+} from '../../services/locationService'
 import { formatVnd } from '../../utils/currency'
 import './TransactionHistory.css'
 
@@ -46,6 +54,9 @@ export function TransactionHistory({
 }: TransactionHistoryProps) {
   const [photoPreviewsByTransactionId, setPhotoPreviewsByTransactionId] =
     useState<Record<number, TransactionPhotoPreview>>({})
+  const [locationsById, setLocationsById] = useState<
+    Record<number, LocationRecord>
+  >({})
 
   useEffect(() => {
     let isActive = true
@@ -90,6 +101,36 @@ export function TransactionHistory({
     return () => {
       isActive = false
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [transactions])
+
+  useEffect(() => {
+    let isActive = true
+    const locationIds = transactions
+      .map((transaction) => transaction.locationId)
+      .filter((locationId): locationId is number => Boolean(locationId))
+
+    void getLocationsByIds(locationIds).then((locations) => {
+      if (!isActive) {
+        return
+      }
+
+      setLocationsById(
+        locations.reduce<Record<number, LocationRecord>>(
+          (accumulator, location) => {
+            if (location.id) {
+              accumulator[location.id] = location
+            }
+
+            return accumulator
+          },
+          {},
+        ),
+      )
+    })
+
+    return () => {
+      isActive = false
     }
   }, [transactions])
 
@@ -138,6 +179,11 @@ export function TransactionHistory({
                 <small>
                   {transaction.dateKey ? `Ngày ${transaction.dateKey}` : null}
                   {transaction.hourKey ? ` | Giờ ${transaction.hourKey}` : null}
+                </small>
+                <small className="transaction-history__location">
+                  {transaction.locationId
+                    ? formatLocationAddress(locationsById[transaction.locationId])
+                    : 'Không có địa chỉ'}
                 </small>
               </div>
 

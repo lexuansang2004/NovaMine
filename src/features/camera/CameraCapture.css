@@ -199,6 +199,7 @@
 
 .camera-capture__type-step,
 .camera-capture__voice-step,
+.camera-capture__location-step,
 .camera-capture__info-step {
   display: grid;
   gap: 10px;
@@ -218,6 +219,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.camera-capture__location-step button {
+  justify-self: start;
 }
 
 .camera-capture__hint {

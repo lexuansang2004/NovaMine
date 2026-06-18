@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { TransactionType } from '../../database/models'
+import type { LocationRecord, TransactionType } from '../../database/models'
 import { createTransaction } from '../../repositories/transactionsRepository'
 import {
   captureImageFromVideo,
@@ -11,7 +11,11 @@ import {
   attachPhotoToTransaction,
   saveImage,
 } from '../../services/imageStorageService'
-import { captureCurrentLocation } from '../../services/locationService'
+import {
+  formatLocationAddress,
+  getCurrentLocationDraft,
+  saveLocationDraft,
+} from '../../services/locationService'
 import {
   isVietnameseSpeechRecognitionSupported,
   listenVietnameseSpeech,
@@ -41,6 +45,8 @@ type CapturedPhotoDraft = {
   capturedAt: string
   url: string
 }
+
+type LocationDraft = Omit<LocationRecord, 'id'>
 
 type CameraCaptureProps = {
   onTransactionCreated: () => Promise<void>
@@ -79,6 +85,8 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [isResolvingLocation, setIsResolvingLocation] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
+  const [locationDraft, setLocationDraft] = useState<LocationDraft | null>(null)
+  const [locationPreviewMessage, setLocationPreviewMessage] = useState('')
   const [transactionAmount, setTransactionAmount] = useState('')
   const [transactionDraftMessage, setTransactionDraftMessage] = useState('')
   const [transactionNote, setTransactionNote] = useState('')
@@ -102,6 +110,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setAmountVoiceTranscript('')
     setIsAmountConfirmed(false)
     setIsCategoryConfirmed(false)
+    setIsResolvingLocation(false)
+    setLocationDraft(null)
+    setLocationPreviewMessage('')
     setTransactionAmount('')
     setTransactionNote('')
     setTransactionTitle('')
@@ -209,6 +220,8 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setAmountVoiceConfidence(null)
     setAmountVoiceTranscript('')
     setIsAmountConfirmed(false)
+    setLocationDraft(null)
+    setLocationPreviewMessage('')
     setTransactionAmount('')
     setTransactionDraftMessage('')
     setTransactionNote('')
@@ -364,6 +377,24 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setAmountParseError('')
     setIsAmountConfirmed(true)
     setErrorMessage('')
+    void resolveLocationPreview()
+  }
+
+  async function resolveLocationPreview() {
+    setIsResolvingLocation(true)
+    setLocationPreviewMessage('Đang lấy vị trí hiện tại...')
+
+    try {
+      const nextLocationDraft = await getCurrentLocationDraft()
+      setLocationDraft(nextLocationDraft)
+      setLocationPreviewMessage(
+        nextLocationDraft
+          ? formatLocationAddress(nextLocationDraft)
+          : 'Không lấy được vị trí hoặc bạn đã từ chối quyền định vị.',
+      )
+    } finally {
+      setIsResolvingLocation(false)
+    }
   }
 
   async function handleSaveTransactionDraft() {
@@ -395,11 +426,10 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
     setErrorMessage('')
     setIsSaving(true)
-    setIsResolvingLocation(true)
 
     try {
       const [locationId, savedPhoto] = await Promise.all([
-        captureCurrentLocation(),
+        saveLocationDraft(locationDraft),
         saveImage(capturedPhotoDraft.blob),
       ])
       const transactionId = await createTransaction({
@@ -439,7 +469,6 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           : 'Không thể lưu giao dịch kèm ảnh.',
       )
     } finally {
-      setIsResolvingLocation(false)
       setIsSaving(false)
     }
   }
@@ -527,6 +556,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                   {transactionAmount
                     ? ` | ${formatVnd(Number(transactionAmount) || 0)}`
                     : ''}
+                </span>
+                <span>
+                  {locationPreviewMessage || 'Chưa lấy địa chỉ hiện tại'}
                 </span>
               </div>
             </div>
@@ -705,31 +737,48 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               {selectedTransactionType &&
               isCategoryConfirmed &&
               isAmountConfirmed ? (
-                <div className="camera-capture__info-step">
-                  <h3>Ghi chú</h3>
-                  <label className="camera-capture__field">
-                    <span>Ghi chú</span>
-                    <textarea
-                      placeholder="Ghi chú ngắn cho giao dịch này"
-                      rows={3}
-                      value={transactionNote}
-                      onChange={(event) => setTransactionNote(event.target.value)}
-                    />
-                  </label>
-                </div>
+                <>
+                  <div className="camera-capture__location-step">
+                    <h3>Địa chỉ hiện tại</h3>
+                    <p>
+                      {locationPreviewMessage ||
+                        'Chưa lấy vị trí. Bạn vẫn có thể lưu giao dịch không kèm địa chỉ.'}
+                    </p>
+                    <button
+                      disabled={isResolvingLocation}
+                      onClick={() => {
+                        void resolveLocationPreview()
+                      }}
+                      type="button"
+                    >
+                      {locationDraft ? 'Lấy lại vị trí' : 'Lấy vị trí'}
+                    </button>
+                  </div>
+
+                  <div className="camera-capture__info-step">
+                    <h3>Ghi chú</h3>
+                    <label className="camera-capture__field">
+                      <span>Ghi chú</span>
+                      <textarea
+                        placeholder="Ghi chú ngắn cho giao dịch này"
+                        rows={3}
+                        value={transactionNote}
+                        onChange={(event) =>
+                          setTransactionNote(event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </>
               ) : null}
 
               <div className="camera-capture__draft-actions">
-                {isResolvingLocation ? (
-                  <p className="camera-capture__listening">
-                    Đang lấy vị trí nếu bạn cho phép...
-                  </p>
-                ) : null}
                 <button
                   disabled={
                     !selectedTransactionType ||
                     !isCategoryConfirmed ||
                     !isAmountConfirmed ||
+                    isResolvingLocation ||
                     isSaving
                   }
                   onClick={() => {
