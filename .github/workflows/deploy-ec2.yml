@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      EC2_HOST: ${{ secrets.EC2_HOST }}
-      EC2_PORT: ${{ secrets.EC2_PORT || '22' }}
+      EC2_HOST: ${{ vars.EC2_HOST || secrets.EC2_HOST || '18.140.116.143' }}
+      EC2_PORT: ${{ vars.EC2_PORT || secrets.EC2_PORT || '22' }}
       EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
-      HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+      EC2_USER: ${{ vars.EC2_USER || secrets.EC2_USER || 'ubuntu' }}
+      HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL || secrets.HEALTHCHECK_URL }}
 
     steps:
       - name: Checkout source
@@ -46,8 +46,17 @@ jobs:
 
       - name: Configure SSH
         run: |
-          test -n "$EC2_HOST"
-          test -n "$EC2_SSH_KEY"
+          if [ -z "$EC2_HOST" ]; then
+            echo "EC2_HOST is empty. Set repository variable EC2_HOST or update the workflow fallback."
+            exit 1
+          fi
+
+          if [ -z "$EC2_SSH_KEY" ]; then
+            echo "EC2_SSH_KEY is empty. Add the private key content as a repository secret."
+            exit 1
+          fi
+
+          echo "Deploy target: $EC2_USER@$EC2_HOST:$EC2_PORT"
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/novamine_key
           chmod 600 ~/.ssh/novamine_key
