@@ -1,0 +1,98 @@
+name: Deploy NovaMine to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: novamine-ec2-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy static app
+    runs-on: ubuntu-latest
+
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_PORT: ${{ secrets.EC2_PORT || '22' }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_USER: ${{ secrets.EC2_USER || 'ubuntu' }}
+      HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Package build output
+        run: tar -czf novamine-dist.tar.gz -C dist .
+
+      - name: Configure SSH
+        run: |
+          test -n "$EC2_HOST"
+          test -n "$EC2_SSH_KEY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/novamine_key
+          chmod 600 ~/.ssh/novamine_key
+          ssh-keyscan -p "$EC2_PORT" -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Prepare EC2 deploy directory
+        run: |
+          ssh -i ~/.ssh/novamine_key -p "$EC2_PORT" "$EC2_USER@$EC2_HOST" \
+            'sudo mkdir -p /var/www/novamine && sudo chown -R $USER:$USER /var/www/novamine'
+
+      - name: Upload build artifact
+        run: |
+          scp -i ~/.ssh/novamine_key -P "$EC2_PORT" novamine-dist.tar.gz \
+            "$EC2_USER@$EC2_HOST:/tmp/novamine-dist.tar.gz"
+
+      - name: Activate release on EC2
+        run: |
+          ssh -i ~/.ssh/novamine_key -p "$EC2_PORT" "$EC2_USER@$EC2_HOST" <<'EOF'
+          set -euo pipefail
+
+          DEPLOY_DIR=/var/www/novamine
+          NEXT_DIST="$DEPLOY_DIR/dist-next"
+          CURRENT_DIST="$DEPLOY_DIR/dist"
+          PREVIOUS_DIST="$DEPLOY_DIR/dist-previous"
+
+          rm -rf "$NEXT_DIST"
+          mkdir -p "$NEXT_DIST"
+          tar -xzf /tmp/novamine-dist.tar.gz -C "$NEXT_DIST"
+          rm -f /tmp/novamine-dist.tar.gz
+
+          rm -rf "$PREVIOUS_DIST"
+          if [ -d "$CURRENT_DIST" ]; then
+            mv "$CURRENT_DIST" "$PREVIOUS_DIST"
+          fi
+
+          mv "$NEXT_DIST" "$CURRENT_DIST"
+
+          sudo nginx -t
+          sudo systemctl reload nginx
+          EOF
+
+      - name: Health check
+        run: |
+          if [ -n "$HEALTHCHECK_URL" ]; then
+            curl --fail --show-error --silent "$HEALTHCHECK_URL" > /dev/null
+          else
+            curl --fail --show-error --silent "http://$EC2_HOST" > /dev/null
+          fi
