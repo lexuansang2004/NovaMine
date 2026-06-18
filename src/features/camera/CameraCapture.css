@@ -158,10 +158,40 @@
 }
 
 .camera-capture__latest-photo {
+  position: relative;
   overflow: hidden;
   border-radius: 8px;
   background: #16231f;
   aspect-ratio: 16 / 10;
+}
+
+.camera-capture__photo-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  gap: 3px;
+  padding: 46px 16px 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 35, 31, 0),
+    rgba(22, 35, 31, 0.86)
+  );
+  color: #ffffff;
+}
+
+.camera-capture__photo-overlay strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.camera-capture__photo-overlay span {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .camera-capture__type-step,
@@ -219,53 +249,24 @@
   color: #ffffff;
 }
 
-.camera-capture__photos {
+.camera-capture__draft-actions {
   display: grid;
-  gap: 12px;
-  max-height: 520px;
-  overflow: auto;
-}
-
-.camera-capture__photos article {
-  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(18, 37, 31, 0.08);
 }
 
-.camera-capture__photos article:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+.camera-capture__draft-actions button:last-child {
+  background: #4b5a54;
 }
 
-.camera-capture__photos img {
-  max-height: 360px;
-  border-radius: 8px;
-}
-
-.camera-capture__photos dl {
+.camera-capture__empty-result {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-
-.camera-capture__photos div {
-  display: grid;
-  gap: 4px;
-}
-
-.camera-capture__photos dt {
+  min-height: 220px;
+  align-content: center;
+  justify-items: center;
+  padding: 24px;
   color: #66746f;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.camera-capture__photos dd {
-  margin: 0;
-  color: #16231f;
-  font-size: 13px;
-  font-weight: 700;
+  text-align: center;
 }
 
 @media (max-width: 820px) {
@@ -282,11 +283,12 @@
     justify-content: flex-start;
   }
 
-  .camera-capture__photos dl {
+  .camera-capture__type-options,
+  .camera-capture__draft-actions {
     grid-template-columns: 1fr;
   }
 
-  .camera-capture__type-options {
-    grid-template-columns: 1fr;
+  .camera-capture__photo-overlay strong {
+    font-size: 18px;
   }
 }
