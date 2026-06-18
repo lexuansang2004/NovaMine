@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   LocationRecord,
   PhotoMetadata,
@@ -20,6 +20,8 @@ type TransactionHistoryProps = {
   transactions: Transaction[]
   onTransactionDeleted: () => Promise<void>
 }
+
+type TransactionTypeFilter = 'all' | Transaction['type']
 
 function getTypeLabel(type: Transaction['type']) {
   return type === 'income' ? 'Thu nhập' : 'Chi tiêu'
@@ -57,11 +59,58 @@ export function TransactionHistory({
   const [locationsById, setLocationsById] = useState<
     Record<number, LocationRecord>
   >({})
+  const [dateFilter, setDateFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all')
+
+  const filteredTransactions = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase('vi-VN')
+
+    return transactions.filter((transaction) => {
+      const categoryName = getTransactionCategoryName(transaction)
+        .toLocaleLowerCase('vi-VN')
+        .trim()
+      const matchesSearch = normalizedSearchTerm
+        ? categoryName.includes(normalizedSearchTerm)
+        : true
+      const matchesType =
+        typeFilter === 'all' ? true : transaction.type === typeFilter
+      const matchesDate = dateFilter ? transaction.dateKey === dateFilter : true
+
+      return matchesSearch && matchesType && matchesDate
+    })
+  }, [dateFilter, searchTerm, transactions, typeFilter])
+
+  const filteredSummary = useMemo(() => {
+    return filteredTransactions.reduce(
+      (summary, transaction) => {
+        const amount = getTransactionAmount(transaction)
+
+        if (transaction.type === 'income') {
+          summary.totalIncomeVnd += amount
+        } else {
+          summary.totalExpenseVnd += amount
+        }
+
+        summary.balanceVnd = summary.totalIncomeVnd - summary.totalExpenseVnd
+
+        return summary
+      },
+      {
+        balanceVnd: 0,
+        totalExpenseVnd: 0,
+        totalIncomeVnd: 0,
+      },
+    )
+  }, [filteredTransactions])
+
+  const hasActiveFilters =
+    Boolean(searchTerm.trim()) || typeFilter !== 'all' || Boolean(dateFilter)
 
   useEffect(() => {
     let isActive = true
     const objectUrls: string[] = []
-    const transactionIds = transactions
+    const transactionIds = filteredTransactions
       .map((transaction) => transaction.id)
       .filter((id): id is number => Boolean(id))
 
@@ -102,11 +151,11 @@ export function TransactionHistory({
       isActive = false
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [transactions])
+  }, [filteredTransactions])
 
   useEffect(() => {
     let isActive = true
-    const locationIds = transactions
+    const locationIds = filteredTransactions
       .map((transaction) => transaction.locationId)
       .filter((locationId): locationId is number => Boolean(locationId))
 
@@ -132,7 +181,13 @@ export function TransactionHistory({
     return () => {
       isActive = false
     }
-  }, [transactions])
+  }, [filteredTransactions])
+
+  function handleResetFilters() {
+    setDateFilter('')
+    setSearchTerm('')
+    setTypeFilter('all')
+  }
 
   async function handleDelete(transactionId: number) {
     await softDeleteTransaction(transactionId)
@@ -151,14 +206,86 @@ export function TransactionHistory({
             </p>
           ) : null}
         </div>
-        <span>{transactions.length}</span>
+        <span>
+          {filteredTransactions.length}
+          {filteredTransactions.length !== transactions.length
+            ? `/${transactions.length}`
+            : ''}
+        </span>
+      </div>
+
+      <div className="transaction-history__filters" aria-label="Bộ lọc lịch sử">
+        <label className="transaction-history__field">
+          <span>Tìm loại phí</span>
+          <input
+            autoComplete="off"
+            placeholder="Ví dụ: ăn uống, lương"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </label>
+
+        <label className="transaction-history__field">
+          <span>Loại giao dịch</span>
+          <select
+            value={typeFilter}
+            onChange={(event) =>
+              setTypeFilter(event.target.value as TransactionTypeFilter)
+            }
+          >
+            <option value="all">Tất cả</option>
+            <option value="income">Thu nhập</option>
+            <option value="expense">Chi tiêu</option>
+          </select>
+        </label>
+
+        <label className="transaction-history__field">
+          <span>Ngày giao dịch</span>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(event) => setDateFilter(event.target.value)}
+          />
+        </label>
+
+        <button
+          className="transaction-history__reset"
+          disabled={!hasActiveFilters}
+          onClick={handleResetFilters}
+          type="button"
+        >
+          Đặt lại
+        </button>
+      </div>
+
+      <div className="transaction-history__summary" aria-label="Tổng theo bộ lọc">
+        <article>
+          <span>Tổng thu</span>
+          <strong className="transaction-history__amount--income">
+            {formatVnd(filteredSummary.totalIncomeVnd)}
+          </strong>
+        </article>
+        <article>
+          <span>Tổng chi</span>
+          <strong className="transaction-history__amount--expense">
+            {formatVnd(filteredSummary.totalExpenseVnd)}
+          </strong>
+        </article>
+        <article>
+          <span>Số dư lọc</span>
+          <strong>{formatVnd(filteredSummary.balanceVnd)}</strong>
+        </article>
       </div>
 
       {transactions.length === 0 ? (
         <p className="transaction-history__empty">Chưa có giao dịch nào.</p>
+      ) : filteredTransactions.length === 0 ? (
+        <p className="transaction-history__empty">
+          Không có giao dịch phù hợp với bộ lọc.
+        </p>
       ) : (
         <ul>
-          {transactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <li key={transaction.id}>
               {transaction.id && photoPreviewsByTransactionId[transaction.id] ? (
                 <div className="transaction-history__photo-frame">
