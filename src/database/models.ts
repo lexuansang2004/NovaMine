@@ -62,3 +62,17 @@ export type PhotoBlobRecord = {
   blob: Blob
   createdAt: string
 }
+
+export type VoiceInputStatus = 'confirmed' | 'failed' | 'recognized'
+
+export type VoiceInput = {
+  id?: number
+  transactionId?: number | null
+  fieldName: 'categoryName'
+  language: 'vi-VN'
+  transcript: string
+  confidence?: number | null
+  status: VoiceInputStatus
+  errorMessage?: string | null
+  createdAt: string
+}

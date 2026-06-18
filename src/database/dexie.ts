@@ -4,6 +4,7 @@ import type {
   PhotoBlobRecord,
   PhotoMetadata,
   Transaction,
+  VoiceInput,
 } from './models'
 
 class NovaMineDatabase extends Dexie {
@@ -11,6 +12,7 @@ class NovaMineDatabase extends Dexie {
   photo_blobs!: Table<PhotoBlobRecord, string>
   photos!: Table<PhotoMetadata, string>
   transactions!: Table<Transaction, number>
+  voice_inputs!: Table<VoiceInput, number>
 
   constructor() {
     super('novamine_local_first_db')
@@ -29,6 +31,14 @@ class NovaMineDatabase extends Dexie {
       photo_blobs: 'id, createdAt',
       photos: 'id, transactionId, createdAt, storageType',
       transactions: '++id, status, type, category, occurredAt, createdAt, deletedAt',
+    })
+
+    this.version(4).stores({
+      app_settings: 'key',
+      photo_blobs: 'id, createdAt',
+      photos: 'id, transactionId, createdAt, storageType',
+      transactions: '++id, status, type, category, occurredAt, createdAt, deletedAt',
+      voice_inputs: '++id, transactionId, fieldName, language, status, createdAt',
     })
   }
 }

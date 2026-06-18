@@ -198,6 +198,7 @@
 }
 
 .camera-capture__type-step,
+.camera-capture__voice-step,
 .camera-capture__info-step {
   display: grid;
   gap: 10px;
@@ -211,6 +212,22 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.camera-capture__voice-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.camera-capture__hint {
+  color: #8b2f24;
+  font-weight: 700;
+}
+
+.camera-capture__listening {
+  color: var(--camera-accent);
+  font-weight: 700;
 }
 
 .camera-capture__field {
@@ -287,6 +304,7 @@
   }
 
   .camera-capture__type-options,
+  .camera-capture__voice-actions,
   .camera-capture__draft-actions {
     grid-template-columns: 1fr;
   }
