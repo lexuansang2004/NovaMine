@@ -1,16 +1,16 @@
 .main-layout {
   min-height: 100vh;
-  background: #f6f7f2;
-  color: #16231f;
+  background: var(--color-canvas-parchment);
+  color: var(--color-ink);
 }
 
 .main-layout__header {
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid rgba(22, 35, 31, 0.1);
-  background: rgba(246, 247, 242, 0.92);
-  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(245, 245, 247, 0.82);
+  backdrop-filter: saturate(180%) blur(20px);
 }
 
 .main-layout__brand {

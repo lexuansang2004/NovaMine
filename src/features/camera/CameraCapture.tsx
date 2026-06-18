@@ -77,6 +77,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   >(null)
   const [amountVoiceTranscript, setAmountVoiceTranscript] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
+  const [isCameraFullscreenOpen, setIsCameraFullscreenOpen] = useState(false)
   const [isAmountConfirmed, setIsAmountConfirmed] = useState(false)
   const [isCameraMirrored, setIsCameraMirrored] = useState(false)
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(false)
@@ -136,9 +137,51 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isCameraFullscreenOpen) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isCameraFullscreenOpen])
+
+  useEffect(() => {
+    if (!isCameraFullscreenOpen || !isCameraActive || !videoRef.current) {
+      return
+    }
+
+    videoRef.current.srcObject = streamRef.current
+    void videoRef.current.play()
+  }, [isCameraActive, isCameraFullscreenOpen])
+
+  useEffect(() => {
+    if (!isCameraFullscreenOpen) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        handleStopCamera()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isCameraFullscreenOpen])
+
   async function handleStartCamera() {
     setErrorMessage('')
     setIsStartingCamera(true)
+    setIsCameraFullscreenOpen(true)
 
     try {
       stopCamera(streamRef.current)
@@ -146,18 +189,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       const stream = await startCamera()
       streamRef.current = stream
       setIsCameraMirrored(shouldMirrorCamera(stream))
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-
       setIsCameraActive(true)
     } catch (error) {
       stopCamera(streamRef.current)
       streamRef.current = null
       setIsCameraMirrored(false)
       setIsCameraActive(false)
+      setIsCameraFullscreenOpen(false)
       const cameraErrorName = error instanceof DOMException ? error.name : ''
       const friendlyCameraMessage =
         cameraErrorName === 'NotFoundError'
@@ -181,6 +219,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     stopCamera(streamRef.current)
     streamRef.current = null
     setIsCameraMirrored(false)
+    setIsCameraFullscreenOpen(false)
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -213,6 +252,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       resetTransactionDraft()
       setTransactionDraftMessage('')
       setErrorMessage('')
+      handleStopCamera()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Không thể chụp ảnh.',
@@ -517,36 +557,12 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           }}
           type="button"
         >
-          {isStartingCamera ? 'Đang bật...' : 'Bật camera'}
-        </button>
-        <button
-          disabled={!isCameraActive || isSaving}
-          onClick={() => {
-            void handleCaptureImage()
-          }}
-          type="button"
-        >
-          {isSaving ? 'Đang xử lý...' : 'Chụp ảnh'}
-        </button>
-        <button
-          disabled={!isCameraActive}
-          onClick={handleStopCamera}
-          type="button"
-        >
-          Tắt camera
+          {isStartingCamera ? 'Đang mở camera...' : 'Mở camera toàn màn hình'}
         </button>
       </div>
 
       <div className="camera-capture__content">
         <div className="camera-capture__preview">
-          <video
-            aria-label="Camera preview"
-            autoPlay
-            className={isCameraMirrored ? 'camera-capture__video--mirrored' : ''}
-            muted
-            playsInline
-            ref={videoRef}
-          />
           {capturedPhotoDraft ? (
             <div className="camera-capture__captured-preview">
               <img alt="Ảnh hóa đơn vừa chụp" src={capturedPhotoDraft.url} />
@@ -571,9 +587,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               </div>
             </div>
           ) : null}
-          {!isCameraActive && !capturedPhotoDraft ? (
+          {!capturedPhotoDraft ? (
             <div className="camera-capture__placeholder">
-              Camera preview sẽ hiển thị ở đây.
+              Ảnh sau khi chụp sẽ hiển thị ở đây.
             </div>
           ) : null}
         </div>
@@ -809,11 +825,50 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           ) : (
             <div className="camera-capture__empty-result">
               <h3>Ảnh vừa chụp</h3>
-              <p>Chưa có ảnh mới. Bấm Chụp ảnh để bắt đầu nhập giao dịch.</p>
+              <p>
+                Chưa có ảnh mới. Bấm Mở camera toàn màn hình để bắt đầu chụp
+                giao dịch.
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {isCameraFullscreenOpen ? (
+        <div className="camera-capture__fullscreen" role="dialog" aria-modal="true">
+          <div className="camera-capture__fullscreen-stage">
+            <video
+              aria-label="Camera toàn màn hình"
+              autoPlay
+              className={
+                isCameraMirrored ? 'camera-capture__video--mirrored' : ''
+              }
+              muted
+              playsInline
+              ref={videoRef}
+            />
+            {!isCameraActive ? (
+              <p className="camera-capture__fullscreen-status">
+                Đang khởi động camera...
+              </p>
+            ) : null}
+          </div>
+          <div className="camera-capture__fullscreen-controls">
+            <button
+              disabled={!isCameraActive || isSaving}
+              onClick={() => {
+                void handleCaptureImage()
+              }}
+              type="button"
+            >
+              {isSaving ? 'Đang xử lý...' : 'Chụp ảnh'}
+            </button>
+            <button onClick={handleStopCamera} type="button">
+              Đóng
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

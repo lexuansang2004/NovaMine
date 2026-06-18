@@ -4,9 +4,9 @@
   align-items: center;
   gap: 18px;
   padding: 18px 20px;
-  border: 1px solid rgba(18, 37, 31, 0.1);
-  border-radius: 8px;
-  background: #fbfcf8;
+  border: 1px solid var(--color-hairline);
+  border-radius: 18px;
+  background: var(--color-surface-pearl);
 }
 
 .storage-quota__header {
@@ -16,7 +16,7 @@
 
 .storage-quota__eyebrow {
   margin: 0 0 6px;
-  color: #1e7a5f;
+  color: var(--color-primary);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0;
@@ -25,21 +25,21 @@
 
 .storage-quota h2 {
   margin: 0;
-  color: #16231f;
+  color: var(--color-ink);
   font-size: 20px;
   line-height: 1.2;
 }
 
 .storage-quota p {
   margin: 6px 0 0;
-  color: #66746f;
+  color: var(--color-muted);
 }
 
 .storage-quota button {
   min-height: 40px;
   border: 0;
-  border-radius: 8px;
-  background: #145c49;
+  border-radius: 999px;
+  background: var(--color-primary);
   color: #ffffff;
   cursor: pointer;
   padding: 0 14px;
@@ -65,11 +65,11 @@
 }
 
 .storage-quota__meter-label span {
-  color: #66746f;
+  color: var(--color-muted);
 }
 
 .storage-quota__meter-label strong {
-  color: #16231f;
+  color: var(--color-ink);
   text-align: right;
 }
 
@@ -77,14 +77,14 @@
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: #e8eee9;
+  background: #e0e0e0;
 }
 
 .storage-quota__bar span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #1e7a5f;
+  background: var(--color-primary);
 }
 
 .storage-quota__error,
@@ -99,12 +99,12 @@
 .storage-quota__error,
 .storage-quota__warning {
   background: #fff1ee;
-  color: #8b2f24;
+  color: var(--color-danger);
 }
 
 .storage-quota__success {
   background: #eef8f4;
-  color: #1e7a5f;
+  color: var(--color-primary);
 }
 
 .storage-quota__status {
