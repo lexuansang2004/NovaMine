@@ -73,6 +73,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [transactionTitle, setTransactionTitle] = useState('')
   const [voiceConfidence, setVoiceConfidence] = useState<number | null>(null)
   const [voiceTranscript, setVoiceTranscript] = useState('')
+  const voiceTranscriptRef = useRef('')
 
   function revokeCapturedPhotoUrl() {
     if (capturedPhotoUrlRef.current) {
@@ -89,6 +90,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setTransactionTitle('')
     setVoiceConfidence(null)
     setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
   }
 
   function clearCapturedPhotoDraft() {
@@ -191,6 +193,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setTransactionTitle('')
     setVoiceConfidence(null)
     setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
     setErrorMessage('')
   }
 
@@ -198,10 +201,24 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setErrorMessage('')
     setIsCategoryConfirmed(false)
     setIsListeningCategory(true)
+    setTransactionTitle('')
+    setVoiceConfidence(null)
+    setVoiceTranscript('')
+    voiceTranscriptRef.current = ''
 
     try {
-      const result = await listenVietnameseCategoryName()
+      const result = await listenVietnameseCategoryName({
+        onTranscript: (update) => {
+          voiceTranscriptRef.current = update.transcript
+          setVoiceTranscript(update.transcript)
 
+          if (update.confidence !== null) {
+            setVoiceConfidence(update.confidence)
+          }
+        },
+      })
+
+      voiceTranscriptRef.current = result.transcript
       setVoiceTranscript(result.transcript)
       setVoiceConfidence(result.confidence)
       setTransactionTitle(result.transcript)
@@ -220,7 +237,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       await logCategoryVoiceInput({
         errorMessage: message,
         status: 'failed',
-        transcript: voiceTranscript,
+        transcript: voiceTranscriptRef.current,
       })
     } finally {
       setIsListeningCategory(false)
@@ -426,11 +443,20 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       placeholder="Bấm micro để nhận diện"
                       value={voiceTranscript}
                       onChange={(event) => {
-                        setVoiceTranscript(event.target.value)
+                        const nextTranscript = event.target.value
+
+                        voiceTranscriptRef.current = nextTranscript
+                        setVoiceTranscript(nextTranscript)
                         setIsCategoryConfirmed(false)
                       }}
                     />
                   </label>
+
+                  {isListeningCategory ? (
+                    <p className="camera-capture__listening">
+                      Đang nghe, chữ sẽ hiện trong lúc bạn nói...
+                    </p>
+                  ) : null}
 
                   {voiceConfidence !== null ? (
                     <p>

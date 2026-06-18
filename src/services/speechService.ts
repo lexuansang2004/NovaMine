@@ -19,6 +19,7 @@ type SpeechRecognitionResultListLike = {
 }
 
 type SpeechRecognitionEventLike = Event & {
+  resultIndex?: number
   results: SpeechRecognitionResultListLike
 }
 
@@ -51,6 +52,10 @@ type SpeechRecognitionResult = {
   transcript: string
 }
 
+type SpeechTranscriptUpdate = SpeechRecognitionResult & {
+  isFinal: boolean
+}
+
 function getSpeechRecognitionConstructor() {
   const speechWindow = window as SpeechRecognitionWindow
 
@@ -70,7 +75,11 @@ export function isVietnameseSpeechRecognitionSupported() {
   return Boolean(getSpeechRecognitionConstructor())
 }
 
-export async function listenVietnameseCategoryName(): Promise<SpeechRecognitionResult> {
+export async function listenVietnameseCategoryName({
+  onTranscript,
+}: {
+  onTranscript?: (update: SpeechTranscriptUpdate) => void
+} = {}): Promise<SpeechRecognitionResult> {
   await requestMicrophonePermission()
 
   const RecognitionConstructor = getSpeechRecognitionConstructor()
@@ -81,36 +90,71 @@ export async function listenVietnameseCategoryName(): Promise<SpeechRecognitionR
 
   return new Promise((resolve, reject) => {
     const recognition = new RecognitionConstructor()
+    let finalTranscript = ''
     let hasResult = false
+    let isSettled = false
 
     recognition.lang = SPEECH_LANGUAGE
     recognition.continuous = false
-    recognition.interimResults = false
+    recognition.interimResults = true
     recognition.maxAlternatives = 1
 
     recognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1]
-      const alternative = result?.[0]
-      const transcript = alternative?.transcript.trim() ?? ''
+      let interimTranscript = ''
+      let latestConfidence: number | null = null
+      const startIndex = event.resultIndex ?? 0
 
-      if (!transcript) {
+      for (let index = startIndex; index < event.results.length; index += 1) {
+        const result = event.results[index]
+        const alternative = result?.[0]
+        const transcript = alternative?.transcript.trim() ?? ''
+
+        if (!transcript) {
+          continue
+        }
+
+        latestConfidence = alternative?.confidence ?? null
+
+        if (result.isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim()
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim()
+        }
+      }
+
+      const currentTranscript = (finalTranscript || interimTranscript).trim()
+
+      if (!currentTranscript) {
         return
       }
 
-      hasResult = true
-      recognition.stop()
-      resolve({
-        confidence: alternative?.confidence ?? null,
-        transcript,
+      onTranscript?.({
+        confidence: latestConfidence,
+        isFinal: Boolean(finalTranscript),
+        transcript: currentTranscript,
       })
+
+      if (finalTranscript && !isSettled) {
+        hasResult = true
+        isSettled = true
+        recognition.stop()
+        resolve({
+          confidence: latestConfidence,
+          transcript: finalTranscript,
+        })
+      }
     }
 
     recognition.onerror = (event) => {
-      reject(new Error(`Không thể nhận diện giọng nói: ${event.error}.`))
+      if (!isSettled) {
+        isSettled = true
+        reject(new Error(`Không thể nhận diện giọng nói: ${event.error}.`))
+      }
     }
 
     recognition.onend = () => {
-      if (!hasResult) {
+      if (!hasResult && !isSettled) {
+        isSettled = true
         reject(new Error('Chưa nhận diện được nội dung giọng nói.'))
       }
     }

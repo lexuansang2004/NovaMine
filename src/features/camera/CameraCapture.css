@@ -225,6 +225,11 @@
   font-weight: 700;
 }
 
+.camera-capture__listening {
+  color: var(--camera-accent);
+  font-weight: 700;
+}
+
 .camera-capture__field {
   display: grid;
   gap: 6px;
