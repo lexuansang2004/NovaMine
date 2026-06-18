@@ -133,6 +133,10 @@
   background: #16231f;
 }
 
+.camera-capture__video--mirrored {
+  transform: scaleX(-1);
+}
+
 .camera-capture__placeholder {
   position: absolute;
   inset: 0;
@@ -141,6 +145,13 @@
   padding: 24px;
   color: #66746f;
   text-align: center;
+}
+
+.camera-capture__captured-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #16231f;
 }
 
 .camera-capture__result {
@@ -155,14 +166,6 @@
   gap: 14px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(18, 37, 31, 0.08);
-}
-
-.camera-capture__latest-photo {
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #16231f;
-  aspect-ratio: 16 / 10;
 }
 
 .camera-capture__photo-overlay {

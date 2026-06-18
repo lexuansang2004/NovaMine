@@ -3,6 +3,7 @@ import type { TransactionType } from '../../database/models'
 import { createTransaction } from '../../repositories/transactionsRepository'
 import {
   captureImageFromVideo,
+  shouldMirrorCamera,
   startCamera,
   stopCamera,
 } from '../../services/cameraService'
@@ -56,6 +57,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     useState<TransactionType | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
+  const [isCameraMirrored, setIsCameraMirrored] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
   const [transactionAmount, setTransactionAmount] = useState('')
@@ -100,6 +102,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
       const stream = await startCamera()
       streamRef.current = stream
+      setIsCameraMirrored(shouldMirrorCamera(stream))
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -110,6 +113,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     } catch (error) {
       stopCamera(streamRef.current)
       streamRef.current = null
+      setIsCameraMirrored(false)
       setIsCameraActive(false)
       setErrorMessage(
         error instanceof Error
@@ -124,6 +128,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   function handleStopCamera() {
     stopCamera(streamRef.current)
     streamRef.current = null
+    setIsCameraMirrored(false)
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -141,7 +146,9 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     setIsSaving(true)
 
     try {
-      const capturedImageBlob = await captureImageFromVideo(videoRef.current)
+      const capturedImageBlob = await captureImageFromVideo(videoRef.current, {
+        mirror: isCameraMirrored,
+      })
       const capturedImageUrl = URL.createObjectURL(capturedImageBlob)
 
       revokeCapturedPhotoUrl()
@@ -281,11 +288,31 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           <video
             aria-label="Camera preview"
             autoPlay
+            className={isCameraMirrored ? 'camera-capture__video--mirrored' : ''}
             muted
             playsInline
             ref={videoRef}
           />
-          {!isCameraActive ? (
+          {capturedPhotoDraft ? (
+            <div className="camera-capture__captured-preview">
+              <img alt="Ảnh hóa đơn vừa chụp" src={capturedPhotoDraft.url} />
+              <div className="camera-capture__photo-overlay">
+                <strong>{formatCapturedAt(capturedPhotoDraft.capturedAt)}</strong>
+                <span>
+                  {selectedTransactionType
+                    ? transactionTypeLabels[selectedTransactionType]
+                    : 'Chưa chọn loại giao dịch'}
+                </span>
+                <span>
+                  {transactionTitle.trim() || 'Chưa nhập tên loại phí'}
+                  {transactionAmount
+                    ? ` | ${formatVnd(Number(transactionAmount) || 0)}`
+                    : ''}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {!isCameraActive && !capturedPhotoDraft ? (
             <div className="camera-capture__placeholder">
               Camera preview sẽ hiển thị ở đây.
             </div>
@@ -295,24 +322,6 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         <div className="camera-capture__result">
           {capturedPhotoDraft ? (
             <div className="camera-capture__transaction-step">
-              <div className="camera-capture__latest-photo">
-                <img alt="Ảnh hóa đơn vừa chụp" src={capturedPhotoDraft.url} />
-                <div className="camera-capture__photo-overlay">
-                  <strong>{formatCapturedAt(capturedPhotoDraft.capturedAt)}</strong>
-                  <span>
-                    {selectedTransactionType
-                      ? transactionTypeLabels[selectedTransactionType]
-                      : 'Chưa chọn loại giao dịch'}
-                  </span>
-                  <span>
-                    {transactionTitle.trim() || 'Chưa nhập tên loại phí'}
-                    {transactionAmount
-                      ? ` | ${formatVnd(Number(transactionAmount) || 0)}`
-                      : ''}
-                  </span>
-                </div>
-              </div>
-
               <div className="camera-capture__type-step">
                 <h3>Chọn loại giao dịch</h3>
                 <div className="camera-capture__type-options">
