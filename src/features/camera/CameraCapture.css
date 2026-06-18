@@ -230,6 +230,11 @@
   font-weight: 700;
 }
 
+.camera-capture__parsed-money {
+  color: #16231f;
+  font-weight: 800;
+}
+
 .camera-capture__field {
   display: grid;
   gap: 6px;
