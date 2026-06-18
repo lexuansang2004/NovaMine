@@ -196,16 +196,117 @@
   white-space: nowrap;
 }
 
-.camera-capture__type-step,
-.camera-capture__voice-step,
-.camera-capture__location-step,
-.camera-capture__info-step {
+.camera-capture__smart-card {
   display: grid;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--color-hairline);
   border-radius: 18px;
+  background: var(--color-canvas);
+  box-shadow: 0 10px 28px rgba(18, 37, 31, 0.05);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.camera-capture__smart-card--active {
+  border-color: color-mix(in srgb, var(--camera-accent) 34%, transparent);
   background: var(--camera-soft);
+  box-shadow: 0 16px 34px rgba(18, 37, 31, 0.08);
+}
+
+.camera-capture__smart-card--confirmed {
+  border-color: color-mix(in srgb, var(--color-success) 28%, transparent);
+}
+
+.camera-capture__smart-card--locked {
+  background: #f5f5f7;
+  opacity: 0.66;
+}
+
+.camera-capture__smart-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.camera-capture__step-number {
+  position: relative;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--camera-accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.camera-capture__smart-card--confirmed .camera-capture__step-number {
+  background: var(--color-success);
+}
+
+.camera-capture__smart-card--confirmed .camera-capture__step-number::before {
+  content: "✓";
+}
+
+.camera-capture__smart-card--confirmed .camera-capture__step-number {
+  color: transparent;
+}
+
+.camera-capture__smart-card--confirmed .camera-capture__step-number::before {
+  color: #ffffff;
+  position: absolute;
+}
+
+.camera-capture__smart-card--locked .camera-capture__step-number {
+  background: #8a8a8e;
+}
+
+.camera-capture__smart-card-title {
+  min-width: 0;
+}
+
+.camera-capture__smart-card-title h3 {
+  font-size: 15px;
+}
+
+.camera-capture__smart-card-title p {
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camera-capture__step-status {
+  white-space: nowrap;
+  border-radius: 999px;
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--camera-accent);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.camera-capture__smart-card--confirmed .camera-capture__step-status {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.camera-capture__smart-card--locked .camera-capture__step-status {
+  background: rgba(142, 142, 147, 0.16);
+  color: #6e6e73;
+}
+
+.camera-capture__smart-card-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 2px;
 }
 
 .camera-capture__type-options {

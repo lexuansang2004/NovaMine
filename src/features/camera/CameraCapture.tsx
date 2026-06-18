@@ -52,6 +52,24 @@ type CameraCaptureProps = {
   onTransactionCreated: () => Promise<void>
 }
 
+type SmartStepStatus = 'active' | 'confirmed' | 'locked'
+
+function getSmartStepClassName(status: SmartStepStatus) {
+  return `camera-capture__smart-card camera-capture__smart-card--${status}`
+}
+
+function getSmartStepStatusLabel(status: SmartStepStatus) {
+  if (status === 'confirmed') {
+    return 'Đã xác nhận'
+  }
+
+  if (status === 'locked') {
+    return 'Chưa tới lượt'
+  }
+
+  return 'Đang nhập'
+}
+
 function formatCapturedAt(value: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
@@ -525,6 +543,33 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const cameraCaptureClassName = selectedTransactionType
     ? `camera-capture camera-capture--${selectedTransactionType}`
     : 'camera-capture'
+  const typeStepStatus: SmartStepStatus = selectedTransactionType
+    ? 'confirmed'
+    : 'active'
+  const categoryStepStatus: SmartStepStatus = !selectedTransactionType
+    ? 'locked'
+    : isCategoryConfirmed
+      ? 'confirmed'
+      : 'active'
+  const amountStepStatus: SmartStepStatus = !isCategoryConfirmed
+    ? 'locked'
+    : isAmountConfirmed
+      ? 'confirmed'
+      : 'active'
+  const locationStepStatus: SmartStepStatus = !isAmountConfirmed
+    ? 'locked'
+    : locationDraft
+      ? 'confirmed'
+      : 'active'
+  const noteStepStatus: SmartStepStatus = !isAmountConfirmed
+    ? 'locked'
+    : 'active'
+  const selectedTransactionTypeLabel = selectedTransactionType
+    ? transactionTypeLabels[selectedTransactionType]
+    : 'Chưa chọn'
+  const confirmedAmountLabel = transactionAmount
+    ? formatVndCurrency(Number(transactionAmount))
+    : 'Chưa có số tiền'
 
   return (
     <section
@@ -597,177 +642,231 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         <div className="camera-capture__result">
           {capturedPhotoDraft ? (
             <div className="camera-capture__transaction-step">
-              <div className="camera-capture__type-step">
-                <h3>Chọn loại giao dịch</h3>
-                <div className="camera-capture__type-options">
-                  {transactionTypeOptions.map((option) => (
-                    <button
-                      aria-pressed={selectedTransactionType === option.value}
-                      className="camera-capture__type-button"
-                      key={option.value}
-                      onClick={() => handleSelectTransactionType(option.value)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+              <div
+                aria-current={typeStepStatus === 'active' ? 'step' : undefined}
+                className={getSmartStepClassName(typeStepStatus)}
+              >
+                <div className="camera-capture__smart-card-header">
+                  <span className="camera-capture__step-number">1</span>
+                  <div className="camera-capture__smart-card-title">
+                    <h3>Chọn loại giao dịch</h3>
+                    <p>
+                      {selectedTransactionType
+                        ? selectedTransactionTypeLabel
+                        : 'Thu nhập hoặc chi tiêu'}
+                    </p>
+                  </div>
+                  <span className="camera-capture__step-status">
+                    {getSmartStepStatusLabel(typeStepStatus)}
+                  </span>
                 </div>
+                {typeStepStatus === 'active' ? (
+                  <div className="camera-capture__smart-card-body">
+                    <div className="camera-capture__type-options">
+                      {transactionTypeOptions.map((option) => (
+                        <button
+                          aria-pressed={selectedTransactionType === option.value}
+                          className="camera-capture__type-button"
+                          key={option.value}
+                          onClick={() => handleSelectTransactionType(option.value)}
+                          type="button"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
-              {selectedTransactionType ? (
-                <div className="camera-capture__voice-step">
-                  <h3>Tên loại phí bằng giọng nói</h3>
-                  <p>
-                    Nói tên loại phí bằng tiếng Việt, ví dụ: ăn uống.
-                  </p>
-
-                  <label className="camera-capture__field">
-                    <span>Kết quả nhận diện</span>
-                    <input
-                      autoComplete="off"
-                      placeholder="Bấm micro để nhận diện"
-                      value={voiceTranscript}
-                      onChange={(event) => {
-                        const nextTranscript = event.target.value
-
-                        voiceTranscriptRef.current = nextTranscript
-                        setVoiceTranscript(nextTranscript)
-                        setIsCategoryConfirmed(false)
-                      }}
-                    />
-                  </label>
-
-                  {isListeningCategory ? (
-                    <p className="camera-capture__listening">
-                      Đang nghe, chữ sẽ hiện trong lúc bạn nói...
-                    </p>
-                  ) : null}
-
-                  {voiceConfidence !== null ? (
+              <div
+                aria-current={categoryStepStatus === 'active' ? 'step' : undefined}
+                aria-disabled={categoryStepStatus === 'locked'}
+                className={getSmartStepClassName(categoryStepStatus)}
+              >
+                <div className="camera-capture__smart-card-header">
+                  <span className="camera-capture__step-number">2</span>
+                  <div className="camera-capture__smart-card-title">
+                    <h3>Tên loại phí bằng giọng nói</h3>
                     <p>
-                      Độ tin cậy khoảng {Math.round(voiceConfidence * 100)}%.
+                      {isCategoryConfirmed
+                        ? transactionTitle
+                        : categoryStepStatus === 'locked'
+                          ? 'Chọn loại giao dịch để mở bước này'
+                          : 'Nói tên loại phí bằng tiếng Việt'}
                     </p>
-                  ) : null}
-
-                  <div className="camera-capture__voice-actions">
-                    <button
-                      disabled={
-                        isListeningCategory ||
-                        !isVietnameseSpeechRecognitionSupported()
-                      }
-                      onClick={() => {
-                        void handleListenCategoryName()
-                      }}
-                      type="button"
-                    >
-                      {voiceTranscript ? 'Thử lại' : 'Bấm micro'}
-                    </button>
-                    <button
-                      disabled={!voiceTranscript.trim() || isListeningCategory}
-                      onClick={handleConfirmCategoryName}
-                      type="button"
-                    >
-                      Xác nhận
-                    </button>
                   </div>
-
-                  {!isVietnameseSpeechRecognitionSupported() ? (
-                    <p className="camera-capture__hint">
-                      Trình duyệt hiện tại chưa hỗ trợ nhận diện giọng nói.
-                    </p>
-                  ) : null}
-
-                  {isCategoryConfirmed ? (
-                    <p className="camera-capture__success">
-                      Đã xác nhận: {transactionTitle}
-                    </p>
-                  ) : null}
+                  <span className="camera-capture__step-status">
+                    {getSmartStepStatusLabel(categoryStepStatus)}
+                  </span>
                 </div>
-              ) : null}
+                {categoryStepStatus === 'active' ? (
+                  <div className="camera-capture__smart-card-body">
+                    <label className="camera-capture__field">
+                      <span>Kết quả nhận diện</span>
+                      <input
+                        autoComplete="off"
+                        placeholder="Bấm micro để nhận diện"
+                        value={voiceTranscript}
+                        onChange={(event) => {
+                          const nextTranscript = event.target.value
 
-              {selectedTransactionType && isCategoryConfirmed ? (
-                <div className="camera-capture__voice-step">
-                  <h3>Số tiền VNĐ bằng giọng nói</h3>
-                  <p>
-                    Nói số tiền, ví dụ: 20k hoặc 20 nghìn.
-                  </p>
+                          voiceTranscriptRef.current = nextTranscript
+                          setVoiceTranscript(nextTranscript)
+                          setIsCategoryConfirmed(false)
+                        }}
+                      />
+                    </label>
 
-                  <label className="camera-capture__field">
-                    <span>Kết quả số tiền</span>
-                    <input
-                      autoComplete="off"
-                      inputMode="text"
-                      placeholder="Ví dụ: 20k, 20 nghìn, 20.000"
-                      value={amountVoiceTranscript}
-                      onChange={(event) => {
-                        updateAmountDraftFromTranscript(event.target.value)
-                      }}
-                    />
-                  </label>
+                    {isListeningCategory ? (
+                      <p className="camera-capture__listening">
+                        Đang nghe, chữ sẽ hiện trong lúc bạn nói...
+                      </p>
+                    ) : null}
 
-                  {isListeningAmount ? (
-                    <p className="camera-capture__listening">
-                      Đang nghe số tiền, chữ sẽ hiện trong lúc bạn nói...
-                    </p>
-                  ) : null}
+                    {voiceConfidence !== null ? (
+                      <p>
+                        Độ tin cậy khoảng {Math.round(voiceConfidence * 100)}%.
+                      </p>
+                    ) : null}
 
-                  {transactionAmount ? (
-                    <p className="camera-capture__parsed-money">
-                      Sẽ lưu: {formatVndCurrency(Number(transactionAmount))}
-                    </p>
-                  ) : null}
+                    <div className="camera-capture__voice-actions">
+                      <button
+                        disabled={
+                          isListeningCategory ||
+                          !isVietnameseSpeechRecognitionSupported()
+                        }
+                        onClick={() => {
+                          void handleListenCategoryName()
+                        }}
+                        type="button"
+                      >
+                        {voiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                      </button>
+                      <button
+                        disabled={!voiceTranscript.trim() || isListeningCategory}
+                        onClick={handleConfirmCategoryName}
+                        type="button"
+                      >
+                        Xác nhận
+                      </button>
+                    </div>
 
-                  {amountParseError ? (
-                    <p className="camera-capture__hint">{amountParseError}</p>
-                  ) : null}
+                    {!isVietnameseSpeechRecognitionSupported() ? (
+                      <p className="camera-capture__hint">
+                        Trình duyệt hiện tại chưa hỗ trợ nhận diện giọng nói.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
 
-                  {amountVoiceConfidence !== null ? (
+              <div
+                aria-current={amountStepStatus === 'active' ? 'step' : undefined}
+                aria-disabled={amountStepStatus === 'locked'}
+                className={getSmartStepClassName(amountStepStatus)}
+              >
+                <div className="camera-capture__smart-card-header">
+                  <span className="camera-capture__step-number">3</span>
+                  <div className="camera-capture__smart-card-title">
+                    <h3>Số tiền VNĐ bằng giọng nói</h3>
                     <p>
-                      Độ tin cậy khoảng{' '}
-                      {Math.round(amountVoiceConfidence * 100)}%.
+                      {isAmountConfirmed
+                        ? confirmedAmountLabel
+                        : amountStepStatus === 'locked'
+                          ? 'Xác nhận tên loại phí để mở bước này'
+                          : 'Nói số tiền, ví dụ: 20k hoặc 20 nghìn'}
                     </p>
-                  ) : null}
-
-                  <div className="camera-capture__voice-actions">
-                    <button
-                      disabled={
-                        isListeningAmount ||
-                        !isVietnameseSpeechRecognitionSupported()
-                      }
-                      onClick={() => {
-                        void handleListenAmount()
-                      }}
-                      type="button"
-                    >
-                      {amountVoiceTranscript ? 'Thử lại' : 'Bấm micro'}
-                    </button>
-                    <button
-                      disabled={!transactionAmount || isListeningAmount}
-                      onClick={handleConfirmAmount}
-                      type="button"
-                    >
-                      Xác nhận
-                    </button>
                   </div>
-
-                  {isAmountConfirmed ? (
-                    <p className="camera-capture__success">
-                      Đã xác nhận: {formatVndCurrency(Number(transactionAmount))}
-                    </p>
-                  ) : null}
+                  <span className="camera-capture__step-status">
+                    {getSmartStepStatusLabel(amountStepStatus)}
+                  </span>
                 </div>
-              ) : null}
+                {amountStepStatus === 'active' ? (
+                  <div className="camera-capture__smart-card-body">
+                    <label className="camera-capture__field">
+                      <span>Kết quả số tiền</span>
+                      <input
+                        autoComplete="off"
+                        inputMode="text"
+                        placeholder="Ví dụ: 20k, 20 nghìn, 20.000"
+                        value={amountVoiceTranscript}
+                        onChange={(event) => {
+                          updateAmountDraftFromTranscript(event.target.value)
+                        }}
+                      />
+                    </label>
 
-              {selectedTransactionType &&
-              isCategoryConfirmed &&
-              isAmountConfirmed ? (
-                <>
-                  <div className="camera-capture__location-step">
+                    {isListeningAmount ? (
+                      <p className="camera-capture__listening">
+                        Đang nghe số tiền, chữ sẽ hiện trong lúc bạn nói...
+                      </p>
+                    ) : null}
+
+                    {transactionAmount ? (
+                      <p className="camera-capture__parsed-money">
+                        Sẽ lưu: {formatVndCurrency(Number(transactionAmount))}
+                      </p>
+                    ) : null}
+
+                    {amountParseError ? (
+                      <p className="camera-capture__hint">{amountParseError}</p>
+                    ) : null}
+
+                    {amountVoiceConfidence !== null ? (
+                      <p>
+                        Độ tin cậy khoảng{' '}
+                        {Math.round(amountVoiceConfidence * 100)}%.
+                      </p>
+                    ) : null}
+
+                    <div className="camera-capture__voice-actions">
+                      <button
+                        disabled={
+                          isListeningAmount ||
+                          !isVietnameseSpeechRecognitionSupported()
+                        }
+                        onClick={() => {
+                          void handleListenAmount()
+                        }}
+                        type="button"
+                      >
+                        {amountVoiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                      </button>
+                      <button
+                        disabled={!transactionAmount || isListeningAmount}
+                        onClick={handleConfirmAmount}
+                        type="button"
+                      >
+                        Xác nhận
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                aria-current={locationStepStatus === 'active' ? 'step' : undefined}
+                aria-disabled={locationStepStatus === 'locked'}
+                className={getSmartStepClassName(locationStepStatus)}
+              >
+                <div className="camera-capture__smart-card-header">
+                  <span className="camera-capture__step-number">4</span>
+                  <div className="camera-capture__smart-card-title">
                     <h3>Địa chỉ hiện tại</h3>
                     <p>
                       {locationPreviewMessage ||
-                        'Chưa lấy vị trí. Bạn vẫn có thể lưu giao dịch không kèm địa chỉ.'}
+                        (locationStepStatus === 'locked'
+                          ? 'Xác nhận số tiền để mở bước này'
+                          : 'Có thể lưu giao dịch không kèm địa chỉ')}
                     </p>
+                  </div>
+                  <span className="camera-capture__step-status">
+                    {getSmartStepStatusLabel(locationStepStatus)}
+                  </span>
+                </div>
+                {locationStepStatus === 'active' ? (
+                  <div className="camera-capture__smart-card-body">
                     {locationDraft ? (
                       <small className="camera-capture__attribution">
                         Dữ liệu địa chỉ © OpenStreetMap contributors.
@@ -783,9 +882,30 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       {locationDraft ? 'Lấy lại vị trí' : 'Lấy vị trí'}
                     </button>
                   </div>
+                ) : null}
+              </div>
 
-                  <div className="camera-capture__info-step">
+              <div
+                aria-current={noteStepStatus === 'active' ? 'step' : undefined}
+                aria-disabled={noteStepStatus === 'locked'}
+                className={getSmartStepClassName(noteStepStatus)}
+              >
+                <div className="camera-capture__smart-card-header">
+                  <span className="camera-capture__step-number">5</span>
+                  <div className="camera-capture__smart-card-title">
                     <h3>Ghi chú</h3>
+                    <p>
+                      {noteStepStatus === 'locked'
+                        ? 'Xác nhận số tiền để mở bước này'
+                        : transactionNote || 'Không bắt buộc'}
+                    </p>
+                  </div>
+                  <span className="camera-capture__step-status">
+                    {getSmartStepStatusLabel(noteStepStatus)}
+                  </span>
+                </div>
+                {noteStepStatus === 'active' ? (
+                  <div className="camera-capture__smart-card-body">
                     <label className="camera-capture__field">
                       <span>Ghi chú</span>
                       <textarea
@@ -798,29 +918,31 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       />
                     </label>
                   </div>
-                </>
-              ) : null}
-
-              <div className="camera-capture__draft-actions">
-                <button
-                  disabled={
-                    !selectedTransactionType ||
-                    !isCategoryConfirmed ||
-                    !isAmountConfirmed ||
-                    isResolvingLocation ||
-                    isSaving
-                  }
-                  onClick={() => {
-                    void handleSaveTransactionDraft()
-                  }}
-                  type="button"
-                >
-                  {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
-                </button>
-                <button onClick={clearCapturedPhotoDraft} type="button">
-                  Quay lại chụp tiếp
-                </button>
+                ) : null}
               </div>
+
+              {isAmountConfirmed ? (
+                <div className="camera-capture__draft-actions">
+                  <button
+                    disabled={
+                      !selectedTransactionType ||
+                      !isCategoryConfirmed ||
+                      !isAmountConfirmed ||
+                      isResolvingLocation ||
+                      isSaving
+                    }
+                    onClick={() => {
+                      void handleSaveTransactionDraft()
+                    }}
+                    type="button"
+                  >
+                    {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
+                  </button>
+                  <button onClick={clearCapturedPhotoDraft} type="button">
+                    Quay lại chụp tiếp
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="camera-capture__empty-result">
