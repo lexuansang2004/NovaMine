@@ -114,6 +114,11 @@
   font-size: 14px;
 }
 
+.transaction-history__info small {
+  color: #66746f;
+  font-size: 12px;
+}
+
 .transaction-history__info p {
   max-width: 480px;
   margin: 0;

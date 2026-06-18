@@ -11,6 +11,7 @@ import {
   attachPhotoToTransaction,
   saveImage,
 } from '../../services/imageStorageService'
+import { captureCurrentLocation } from '../../services/locationService'
 import {
   isVietnameseSpeechRecognitionSupported,
   listenVietnameseSpeech,
@@ -75,6 +76,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(false)
   const [isListeningAmount, setIsListeningAmount] = useState(false)
   const [isListeningCategory, setIsListeningCategory] = useState(false)
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
   const [transactionAmount, setTransactionAmount] = useState('')
@@ -393,13 +395,21 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
     setErrorMessage('')
     setIsSaving(true)
+    setIsResolvingLocation(true)
 
     try {
-      const savedPhoto = await saveImage(capturedPhotoDraft.blob)
+      const [locationId, savedPhoto] = await Promise.all([
+        captureCurrentLocation(),
+        saveImage(capturedPhotoDraft.blob),
+      ])
       const transactionId = await createTransaction({
         amount: normalizedAmount,
+        amountVnd: normalizedAmount,
         category: transactionTitle,
+        categoryName: transactionTitle,
+        locationId,
         note: transactionNote,
+        photoId: savedPhoto.id,
         title: transactionTitle,
         type: selectedTransactionType,
       })
@@ -429,6 +439,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           : 'Không thể lưu giao dịch kèm ảnh.',
       )
     } finally {
+      setIsResolvingLocation(false)
       setIsSaving(false)
     }
   }
@@ -444,11 +455,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     >
       <div className="camera-capture__header">
         <div>
-          <p className="camera-capture__eyebrow">Phase 7</p>
-          <h2 id="camera-capture-title">Chụp ảnh và nhập giao dịch bằng giọng nói</h2>
+          <p className="camera-capture__eyebrow">Phase 8</p>
+          <h2 id="camera-capture-title">Chụp ảnh và lưu giao dịch hoàn chỉnh</h2>
           <p>
             Chụp một ảnh, chọn loại giao dịch, nói tên loại phí bằng tiếng Việt
-            và nói số tiền VNĐ trước khi lưu.
+            và số tiền VNĐ, lấy vị trí nếu được phép rồi lưu vào lịch sử.
           </p>
         </div>
 
@@ -709,6 +720,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
               ) : null}
 
               <div className="camera-capture__draft-actions">
+                {isResolvingLocation ? (
+                  <p className="camera-capture__listening">
+                    Đang lấy vị trí nếu bạn cho phép...
+                  </p>
+                ) : null}
                 <button
                   disabled={
                     !selectedTransactionType ||

@@ -6,9 +6,15 @@ export type Transaction = {
   id?: number
   title: string
   amount: number
+  amountVnd?: number
   type: TransactionType
   category: string
+  categoryName?: string
+  dateKey?: string
+  hourKey?: string
+  locationId?: number | null
   note?: string
+  photoId?: string | null
   status: TransactionStatus
   occurredAt: string
   createdAt: string
@@ -19,10 +25,14 @@ export type Transaction = {
 export type CreateTransactionInput = {
   title: string
   amount: number
+  amountVnd?: number
   type: TransactionType
   category?: string
+  categoryName?: string
+  locationId?: number | null
   note?: string
   occurredAt?: string
+  photoId?: string | null
 }
 
 export type AppSetting = {
@@ -75,4 +85,12 @@ export type VoiceInput = {
   status: VoiceInputStatus
   errorMessage?: string | null
   createdAt: string
+}
+
+export type LocationRecord = {
+  id?: number
+  latitude: number
+  longitude: number
+  accuracy?: number | null
+  capturedAt: string
 }

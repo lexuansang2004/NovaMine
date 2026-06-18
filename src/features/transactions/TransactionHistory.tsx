@@ -27,6 +27,14 @@ function formatReceiptTimestamp(value: string) {
   }).format(new Date(value))
 }
 
+function getTransactionAmount(transaction: Transaction) {
+  return transaction.amountVnd ?? transaction.amount
+}
+
+function getTransactionCategoryName(transaction: Transaction) {
+  return transaction.categoryName ?? transaction.category ?? transaction.title
+}
+
 type TransactionPhotoPreview = {
   metadata: PhotoMetadata
   url: string
@@ -116,16 +124,21 @@ export function TransactionHistory({
                   <div className="transaction-history__photo-overlay">
                     <strong>{formatReceiptTimestamp(transaction.occurredAt)}</strong>
                     <span>
-                      {transaction.title} | {formatVnd(transaction.amount)}
+                      {getTransactionCategoryName(transaction)} |{' '}
+                      {formatVnd(getTransactionAmount(transaction))}
                     </span>
                   </div>
                 </div>
               ) : null}
 
               <div className="transaction-history__info">
-                <strong>{transaction.title}</strong>
+                <strong>{getTransactionCategoryName(transaction)}</strong>
                 <span>{getTypeLabel(transaction.type)}</span>
                 {transaction.note ? <p>{transaction.note}</p> : null}
+                <small>
+                  {transaction.dateKey ? `Ngày ${transaction.dateKey}` : null}
+                  {transaction.hourKey ? ` | Giờ ${transaction.hourKey}` : null}
+                </small>
               </div>
 
               <div className="transaction-history__meta">
@@ -133,7 +146,7 @@ export function TransactionHistory({
                   className={`transaction-history__amount transaction-history__amount--${transaction.type}`}
                 >
                   {transaction.type === 'income' ? '+' : '-'}
-                  {formatVnd(transaction.amount)}
+                  {formatVnd(getTransactionAmount(transaction))}
                 </strong>
                 <button
                   type="button"

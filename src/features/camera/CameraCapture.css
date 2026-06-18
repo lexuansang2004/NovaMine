@@ -280,6 +280,10 @@
   gap: 10px;
 }
 
+.camera-capture__draft-actions p {
+  grid-column: 1 / -1;
+}
+
 .camera-capture__draft-actions button:last-child {
   background: #4b5a54;
 }
