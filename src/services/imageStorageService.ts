@@ -186,21 +186,6 @@ export async function saveImage(sourceBlob: Blob): Promise<PhotoMetadata> {
   return metadata
 }
 
-export async function getStoredPhotos(): Promise<PhotoMetadata[]> {
-  return db.photos.orderBy('createdAt').reverse().toArray()
-}
-
-export async function getUnlinkedPhotos(): Promise<PhotoMetadata[]> {
-  const photos = await db.photos
-    .filter((photo) => !photo.transactionId)
-    .toArray()
-
-  return photos.sort(
-    (left, right) =>
-      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  )
-}
-
 export async function attachPhotoToTransaction(
   photoId: string,
   transactionId: number,

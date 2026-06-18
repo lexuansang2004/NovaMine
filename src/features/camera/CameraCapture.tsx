@@ -1,23 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PhotoMetadata, TransactionType } from '../../database/models'
+import { useEffect, useRef, useState } from 'react'
+import type { TransactionType } from '../../database/models'
 import { createTransaction } from '../../repositories/transactionsRepository'
 import {
   captureImageFromVideo,
+  shouldMirrorCamera,
   startCamera,
   stopCamera,
 } from '../../services/cameraService'
 import {
-  getPhotoBlob,
-  getUnlinkedPhotos,
   attachPhotoToTransaction,
   saveImage,
 } from '../../services/imageStorageService'
+import { formatVnd } from '../../utils/currency'
 import './CameraCapture.css'
-
-type StoredPhotoPreview = {
-  metadata: PhotoMetadata
-  url: string
-}
 
 const transactionTypeOptions: Array<{
   label: string
@@ -32,77 +27,71 @@ const transactionTypeLabels: Record<TransactionType, string> = {
   income: 'Thu nhập',
 }
 
-async function buildStoredPhotoPreviews(): Promise<StoredPhotoPreview[]> {
-  const photos = await getUnlinkedPhotos()
-
-  return Promise.all(
-    photos.map(async (metadata) => {
-      const blob = await getPhotoBlob(metadata)
-      const url = URL.createObjectURL(blob)
-
-      return {
-        metadata,
-        url,
-      }
-    }),
-  )
+type CapturedPhotoDraft = {
+  blob: Blob
+  capturedAt: string
+  url: string
 }
 
 type CameraCaptureProps = {
   onTransactionCreated: () => Promise<void>
 }
 
+function formatCapturedAt(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
 export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const previewUrlsRef = useRef<string[]>([])
-  const [latestCapturedPhoto, setLatestCapturedPhoto] =
-    useState<StoredPhotoPreview | null>(null)
+  const capturedPhotoUrlRef = useRef<string | null>(null)
+  const [capturedPhotoDraft, setCapturedPhotoDraft] =
+    useState<CapturedPhotoDraft | null>(null)
   const [selectedTransactionType, setSelectedTransactionType] =
     useState<TransactionType | null>(null)
-  const [storedPhotos, setStoredPhotos] = useState<StoredPhotoPreview[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [isCameraActive, setIsCameraActive] = useState(false)
-  const [isSavingImage, setIsSavingImage] = useState(false)
+  const [isCameraMirrored, setIsCameraMirrored] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [isStartingCamera, setIsStartingCamera] = useState(false)
   const [transactionAmount, setTransactionAmount] = useState('')
   const [transactionDraftMessage, setTransactionDraftMessage] = useState('')
   const [transactionNote, setTransactionNote] = useState('')
   const [transactionTitle, setTransactionTitle] = useState('')
 
-  const revokePreviewUrls = useCallback(() => {
-    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-    previewUrlsRef.current = []
-  }, [])
+  function revokeCapturedPhotoUrl() {
+    if (capturedPhotoUrlRef.current) {
+      URL.revokeObjectURL(capturedPhotoUrlRef.current)
+      capturedPhotoUrlRef.current = null
+    }
+  }
 
-  const replaceStoredPhotoPreviews = useCallback((previews: StoredPhotoPreview[]) => {
-    revokePreviewUrls()
-    previewUrlsRef.current = previews.map((preview) => preview.url)
-    setStoredPhotos(previews)
-  }, [revokePreviewUrls])
+  function resetTransactionDraft() {
+    setSelectedTransactionType(null)
+    setTransactionAmount('')
+    setTransactionNote('')
+    setTransactionTitle('')
+  }
 
-  const loadStoredImages = useCallback(async () => {
-    const previews = await buildStoredPhotoPreviews()
-    replaceStoredPhotoPreviews(previews)
-
-    return previews
-  }, [replaceStoredPhotoPreviews])
+  function clearCapturedPhotoDraft() {
+    revokeCapturedPhotoUrl()
+    setCapturedPhotoDraft(null)
+    resetTransactionDraft()
+    setErrorMessage('')
+  }
 
   useEffect(() => {
-    let isActive = true
-
-    void buildStoredPhotoPreviews().then((previews) => {
-      if (isActive) {
-        replaceStoredPhotoPreviews(previews)
-      }
-    })
-
     return () => {
-      isActive = false
       stopCamera(streamRef.current)
-      revokePreviewUrls()
+      revokeCapturedPhotoUrl()
     }
-  }, [replaceStoredPhotoPreviews, revokePreviewUrls])
+  }, [])
 
   async function handleStartCamera() {
     setErrorMessage('')
@@ -113,6 +102,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
 
       const stream = await startCamera()
       streamRef.current = stream
+      setIsCameraMirrored(shouldMirrorCamera(stream))
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -123,6 +113,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     } catch (error) {
       stopCamera(streamRef.current)
       streamRef.current = null
+      setIsCameraMirrored(false)
       setIsCameraActive(false)
       setErrorMessage(
         error instanceof Error
@@ -137,6 +128,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
   function handleStopCamera() {
     stopCamera(streamRef.current)
     streamRef.current = null
+    setIsCameraMirrored(false)
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -151,56 +143,47 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
       return
     }
 
-    setIsSavingImage(true)
+    setIsSaving(true)
 
     try {
-      const capturedImageBlob = await captureImageFromVideo(videoRef.current)
-      const savedPhoto = await saveImage(capturedImageBlob)
-      const previews = await loadStoredImages()
-      const capturedPhoto =
-        previews.find((photo) => photo.metadata.id === savedPhoto.id) ?? null
+      const capturedImageBlob = await captureImageFromVideo(videoRef.current, {
+        mirror: isCameraMirrored,
+      })
+      const capturedImageUrl = URL.createObjectURL(capturedImageBlob)
 
-      setLatestCapturedPhoto(capturedPhoto)
-      setSelectedTransactionType(null)
-      setTransactionAmount('')
+      revokeCapturedPhotoUrl()
+      capturedPhotoUrlRef.current = capturedImageUrl
+      setCapturedPhotoDraft({
+        blob: capturedImageBlob,
+        capturedAt: new Date().toISOString(),
+        url: capturedImageUrl,
+      })
+      resetTransactionDraft()
       setTransactionDraftMessage('')
-      setTransactionNote('')
-      setTransactionTitle('')
       setErrorMessage('')
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Không thể chụp và lưu ảnh.',
+        error instanceof Error ? error.message : 'Không thể chụp ảnh.',
       )
     } finally {
-      setIsSavingImage(false)
+      setIsSaving(false)
     }
   }
 
   function handleSelectTransactionType(type: TransactionType) {
     setSelectedTransactionType(type)
     setTransactionDraftMessage('')
-  }
-
-  function handleUseStoredPhoto(photo: StoredPhotoPreview) {
-    setLatestCapturedPhoto(photo)
-    setSelectedTransactionType(null)
-    setTransactionAmount('')
-    setTransactionDraftMessage('')
-    setTransactionNote('')
-    setTransactionTitle('')
     setErrorMessage('')
   }
 
   async function handleSaveTransactionDraft() {
-    if (!selectedTransactionType) {
-      setErrorMessage('Vui lòng chọn Thu nhập hoặc Chi tiêu trước khi lưu.')
+    if (!capturedPhotoDraft) {
+      setErrorMessage('Vui lòng chụp ảnh trước khi lưu giao dịch.')
       return
     }
 
-    if (!latestCapturedPhoto) {
-      setErrorMessage('Vui lòng chụp ảnh trước khi lưu giao dịch.')
+    if (!selectedTransactionType) {
+      setErrorMessage('Vui lòng chọn Thu nhập hoặc Chi tiêu trước khi lưu.')
       return
     }
 
@@ -217,28 +200,31 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     }
 
     setErrorMessage('')
+    setIsSaving(true)
 
-    const transactionId = await createTransaction({
-      amount: normalizedAmount,
-      category: transactionTitle,
-      note: transactionNote,
-      title: transactionTitle,
-      type: selectedTransactionType,
-    })
+    try {
+      const savedPhoto = await saveImage(capturedPhotoDraft.blob)
+      const transactionId = await createTransaction({
+        amount: normalizedAmount,
+        category: transactionTitle,
+        note: transactionNote,
+        title: transactionTitle,
+        type: selectedTransactionType,
+      })
 
-    await attachPhotoToTransaction(
-      latestCapturedPhoto.metadata.id,
-      transactionId,
-    )
-    await onTransactionCreated()
-    await loadStoredImages()
-
-    setLatestCapturedPhoto(null)
-    setSelectedTransactionType(null)
-    setTransactionAmount('')
-    setTransactionNote('')
-    setTransactionTitle('')
-    setTransactionDraftMessage('Đã lưu giao dịch kèm ảnh vào lịch sử.')
+      await attachPhotoToTransaction(savedPhoto.id, transactionId)
+      await onTransactionCreated()
+      clearCapturedPhotoDraft()
+      setTransactionDraftMessage('Đã lưu giao dịch kèm ảnh vào lịch sử.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Không thể lưu giao dịch kèm ảnh.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const cameraCaptureClassName = selectedTransactionType
@@ -255,8 +241,8 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
           <p className="camera-capture__eyebrow">Phase 5</p>
           <h2 id="camera-capture-title">Chụp ảnh và chọn loại giao dịch</h2>
           <p>
-            Bật camera, chụp ảnh hóa đơn, sau đó chọn Thu nhập hoặc Chi tiêu
-            trước khi nhập thông tin giao dịch.
+            Chụp một ảnh, ghi thông tin giao dịch ngay trên ảnh vừa chụp, rồi
+            lưu vào lịch sử giao dịch.
           </p>
         </div>
 
@@ -271,13 +257,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
             {isStartingCamera ? 'Đang bật...' : 'Bật camera'}
           </button>
           <button
-            disabled={!isCameraActive || isSavingImage}
+            disabled={!isCameraActive || isSaving}
             onClick={() => {
               void handleCaptureImage()
             }}
             type="button"
           >
-            {isSavingImage ? 'Đang lưu...' : 'Chụp và lưu'}
+            {isSaving ? 'Đang xử lý...' : 'Chụp ảnh'}
           </button>
           <button
             disabled={!isCameraActive}
@@ -293,16 +279,40 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         <p className="camera-capture__error">{errorMessage}</p>
       ) : null}
 
+      {transactionDraftMessage ? (
+        <p className="camera-capture__success">{transactionDraftMessage}</p>
+      ) : null}
+
       <div className="camera-capture__content">
         <div className="camera-capture__preview">
           <video
             aria-label="Camera preview"
             autoPlay
+            className={isCameraMirrored ? 'camera-capture__video--mirrored' : ''}
             muted
             playsInline
             ref={videoRef}
           />
-          {!isCameraActive ? (
+          {capturedPhotoDraft ? (
+            <div className="camera-capture__captured-preview">
+              <img alt="Ảnh hóa đơn vừa chụp" src={capturedPhotoDraft.url} />
+              <div className="camera-capture__photo-overlay">
+                <strong>{formatCapturedAt(capturedPhotoDraft.capturedAt)}</strong>
+                <span>
+                  {selectedTransactionType
+                    ? transactionTypeLabels[selectedTransactionType]
+                    : 'Chưa chọn loại giao dịch'}
+                </span>
+                <span>
+                  {transactionTitle.trim() || 'Chưa nhập tên loại phí'}
+                  {transactionAmount
+                    ? ` | ${formatVnd(Number(transactionAmount) || 0)}`
+                    : ''}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {!isCameraActive && !capturedPhotoDraft ? (
             <div className="camera-capture__placeholder">
               Camera preview sẽ hiển thị ở đây.
             </div>
@@ -310,15 +320,8 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
         </div>
 
         <div className="camera-capture__result">
-          {latestCapturedPhoto ? (
+          {capturedPhotoDraft ? (
             <div className="camera-capture__transaction-step">
-              <div className="camera-capture__latest-photo">
-                <img
-                  alt="Ảnh hóa đơn vừa chụp"
-                  src={latestCapturedPhoto.url}
-                />
-              </div>
-
               <div className="camera-capture__type-step">
                 <h3>Chọn loại giao dịch</h3>
                 <div className="camera-capture__type-options">
@@ -381,59 +384,29 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       onChange={(event) => setTransactionNote(event.target.value)}
                     />
                   </label>
-
-                  <button
-                    onClick={() => {
-                      void handleSaveTransactionDraft()
-                    }}
-                    type="button"
-                  >
-                    Lưu thông tin
-                  </button>
                 </div>
               ) : null}
-            </div>
-          ) : null}
 
-          {transactionDraftMessage ? (
-            <p className="camera-capture__success">
-              {transactionDraftMessage}
-            </p>
-          ) : null}
-
-          <h3>Ảnh chưa gắn giao dịch</h3>
-          {storedPhotos.length > 0 ? (
-            <div className="camera-capture__photos">
-              {storedPhotos.map((photo) => (
-                <article key={photo.metadata.id}>
-                  <img alt="Ảnh hóa đơn đã lưu" src={photo.url} />
-                  <dl>
-                    <div>
-                      <dt>Kích thước</dt>
-                      <dd>
-                        {photo.metadata.width} x {photo.metadata.height}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Dung lượng</dt>
-                      <dd>{Math.round(photo.metadata.sizeBytes / 1024)} KB</dd>
-                    </div>
-                    <div>
-                      <dt>Lưu trữ</dt>
-                      <dd>{photo.metadata.storageType.toUpperCase()}</dd>
-                    </div>
-                  </dl>
-                  <button
-                    onClick={() => handleUseStoredPhoto(photo)}
-                    type="button"
-                  >
-                    Nhập giao dịch cho ảnh này
-                  </button>
-                </article>
-              ))}
+              <div className="camera-capture__draft-actions">
+                <button
+                  disabled={!selectedTransactionType || isSaving}
+                  onClick={() => {
+                    void handleSaveTransactionDraft()
+                  }}
+                  type="button"
+                >
+                  {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
+                </button>
+                <button onClick={clearCapturedPhotoDraft} type="button">
+                  Quay lại chụp tiếp
+                </button>
+              </div>
             </div>
           ) : (
-            <p>Chưa có ảnh nào được lưu.</p>
+            <div className="camera-capture__empty-result">
+              <h3>Ảnh vừa chụp</h3>
+              <p>Chưa có ảnh mới. Bấm Chụp ảnh để bắt đầu nhập giao dịch.</p>
+            </div>
           )}
         </div>
       </div>
