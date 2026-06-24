@@ -122,10 +122,47 @@ async function saveBlobToOpfs(fileName: string, blob: Blob) {
     create: true,
   })
   const fileHandle = await directory.getFileHandle(fileName, { create: true })
+
+  if (typeof fileHandle.createWritable !== 'function') {
+    throw new Error('OPFS writable streams are not supported.')
+  }
+
   const writable = await fileHandle.createWritable()
 
   await writable.write(blob)
   await writable.close()
+}
+
+async function removeBlobFromOpfs(fileName: string) {
+  try {
+    const root = await navigator.storage.getDirectory()
+    const directory = await root.getDirectoryHandle(IMAGE_DIRECTORY_NAME)
+    await directory.removeEntry(fileName)
+  } catch {
+    // A failed OPFS write may not have created a file to remove.
+  }
+}
+
+async function trySaveBlobToOpfs(fileName: string, blob: Blob) {
+  if (!supportsOpfs()) {
+    return false
+  }
+
+  try {
+    await saveBlobToOpfs(fileName, blob)
+    return true
+  } catch {
+    await removeBlobFromOpfs(fileName)
+    return false
+  }
+}
+
+async function saveBlobToIndexedDb(id: string, blob: Blob, createdAt: string) {
+  await db.photo_blobs.put({
+    id,
+    blob,
+    createdAt,
+  })
 }
 
 async function readBlobFromOpfs(fileName: string) {
@@ -145,8 +182,9 @@ export async function saveImage(sourceBlob: Blob): Promise<PhotoMetadata> {
 
   let metadata: PhotoMetadata
 
-  if (supportsOpfs()) {
-    await saveBlobToOpfs(fileName, optimizedImage.blob)
+  const storedInOpfs = await trySaveBlobToOpfs(fileName, optimizedImage.blob)
+
+  if (storedInOpfs) {
 
     metadata = {
       id,
@@ -161,11 +199,7 @@ export async function saveImage(sourceBlob: Blob): Promise<PhotoMetadata> {
       width: optimizedImage.width,
     }
   } else {
-    await db.photo_blobs.put({
-      id,
-      blob: optimizedImage.blob,
-      createdAt,
-    })
+    await saveBlobToIndexedDb(id, optimizedImage.blob, createdAt)
 
     metadata = {
       id,
