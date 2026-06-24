@@ -81,6 +81,8 @@ function formatCapturedAt(value: string) {
 }
 
 export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
+  const speechRecognitionSupported =
+    isVietnameseSpeechRecognitionSupported()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const capturedPhotoUrlRef = useRef<string | null>(null)
@@ -370,7 +372,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     const normalizedCategoryName = voiceTranscript.trim()
 
     if (!normalizedCategoryName) {
-      setErrorMessage('Vui lòng bấm micro để nhập tên loại phí trước.')
+      setErrorMessage('Vui lòng nhập tên loại phí trước khi xác nhận.')
       return
     }
 
@@ -476,7 +478,7 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
     }
 
     if (!isCategoryConfirmed || !transactionTitle.trim()) {
-      setErrorMessage('Vui lòng xác nhận tên loại phí bằng giọng nói.')
+      setErrorMessage('Vui lòng nhập và xác nhận tên loại phí.')
       return
     }
 
@@ -687,13 +689,15 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                 <div className="camera-capture__smart-card-header">
                   <span className="camera-capture__step-number">2</span>
                   <div className="camera-capture__smart-card-title">
-                    <h3>Tên loại phí bằng giọng nói</h3>
+                    <h3>Tên loại phí</h3>
                     <p>
                       {isCategoryConfirmed
                         ? transactionTitle
                         : categoryStepStatus === 'locked'
                           ? 'Chọn loại giao dịch để mở bước này'
-                          : 'Nói tên loại phí bằng tiếng Việt'}
+                          : speechRecognitionSupported
+                            ? 'Nói bằng tiếng Việt hoặc nhập trực tiếp'
+                            : 'Nhập trực tiếp hoặc dùng micro trên bàn phím'}
                     </p>
                   </div>
                   <span className="camera-capture__step-status">
@@ -703,10 +707,14 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                 {categoryStepStatus === 'active' ? (
                   <div className="camera-capture__smart-card-body">
                     <label className="camera-capture__field">
-                      <span>Kết quả nhận diện</span>
+                      <span>Tên loại phí</span>
                       <input
                         autoComplete="off"
-                        placeholder="Bấm micro để nhận diện"
+                        placeholder={
+                          speechRecognitionSupported
+                            ? 'Bấm micro hoặc nhập tên loại phí'
+                            : 'Nhập tên loại phí'
+                        }
                         value={voiceTranscript}
                         onChange={(event) => {
                           const nextTranscript = event.target.value
@@ -734,14 +742,18 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       <button
                         disabled={
                           isListeningCategory ||
-                          !isVietnameseSpeechRecognitionSupported()
+                          !speechRecognitionSupported
                         }
                         onClick={() => {
                           void handleListenCategoryName()
                         }}
                         type="button"
                       >
-                        {voiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                        {!speechRecognitionSupported
+                          ? 'Micro không hỗ trợ'
+                          : voiceTranscript
+                            ? 'Thử lại'
+                            : 'Bấm micro'}
                       </button>
                       <button
                         disabled={!voiceTranscript.trim() || isListeningCategory}
@@ -752,9 +764,11 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       </button>
                     </div>
 
-                    {!isVietnameseSpeechRecognitionSupported() ? (
+                    {!speechRecognitionSupported ? (
                       <p className="camera-capture__hint">
-                        Trình duyệt hiện tại chưa hỗ trợ nhận diện giọng nói.
+                        Trình duyệt này chưa hỗ trợ nhận diện giọng nói của web
+                        app. Trên iPhone, hãy nhập trực tiếp hoặc dùng nút micro
+                        trên bàn phím, rồi bấm Xác nhận.
                       </p>
                     ) : null}
                   </div>
@@ -769,13 +783,15 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                 <div className="camera-capture__smart-card-header">
                   <span className="camera-capture__step-number">3</span>
                   <div className="camera-capture__smart-card-title">
-                    <h3>Số tiền VNĐ bằng giọng nói</h3>
+                    <h3>Số tiền VNĐ</h3>
                     <p>
                       {isAmountConfirmed
                         ? confirmedAmountLabel
                         : amountStepStatus === 'locked'
                           ? 'Xác nhận tên loại phí để mở bước này'
-                          : 'Nói số tiền, ví dụ: 20k hoặc 20 nghìn'}
+                          : speechRecognitionSupported
+                            ? 'Nói hoặc nhập số tiền, ví dụ: 20k hoặc 20 nghìn'
+                            : 'Nhập số tiền hoặc dùng micro trên bàn phím'}
                     </p>
                   </div>
                   <span className="camera-capture__step-status">
@@ -824,14 +840,18 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                       <button
                         disabled={
                           isListeningAmount ||
-                          !isVietnameseSpeechRecognitionSupported()
+                          !speechRecognitionSupported
                         }
                         onClick={() => {
                           void handleListenAmount()
                         }}
                         type="button"
                       >
-                        {amountVoiceTranscript ? 'Thử lại' : 'Bấm micro'}
+                        {!speechRecognitionSupported
+                          ? 'Micro không hỗ trợ'
+                          : amountVoiceTranscript
+                            ? 'Thử lại'
+                            : 'Bấm micro'}
                       </button>
                       <button
                         disabled={!transactionAmount || isListeningAmount}
@@ -841,6 +861,13 @@ export function CameraCapture({ onTransactionCreated }: CameraCaptureProps) {
                         Xác nhận
                       </button>
                     </div>
+
+                    {!speechRecognitionSupported ? (
+                      <p className="camera-capture__hint">
+                        Nhập số tiền trực tiếp hoặc dùng nút micro trên bàn phím
+                        iPhone, sau đó bấm Xác nhận.
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
