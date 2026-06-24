@@ -102,7 +102,7 @@ export function ManualTransactionForm({
           inputMode="numeric"
           min="0"
           placeholder="Ví dụ: 150000"
-          step="1000"
+          step="1"
           type="number"
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
