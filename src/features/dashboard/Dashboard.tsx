@@ -88,7 +88,7 @@ export function Dashboard({
               <span>Số tiền hiện có ban đầu</span>
               <input
                 min="0"
-                step="1000"
+                step="1"
                 type="number"
                 value={initialBalanceInput}
                 onChange={(event) => setInitialBalanceInput(event.target.value)}
